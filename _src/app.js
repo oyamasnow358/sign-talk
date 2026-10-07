@@ -136,18 +136,23 @@
      カメラ と MediaPipe
      ============================================================ */
   const video = $('#video');
+  const timeout = (pr, ms, name) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error(name)), ms))]);
   const V = { ready: false, loading: null, hand: null, pose: null, stream: null, running: false, onFrame: null, lastVT: -1, lastT: 0, lastPose: null, k: 0, fps: 0, slow: false, err: '' };
   function loadVision() {
     if (V.ready) return Promise.resolve();
     if (V.loading) return V.loading;
     V.loading = (async () => {
+      V.step = 'よみとりの ぶひん（1/3）';
       const mp = await import(new URL('vendor/vision_bundle.js', location.href).href);
       const fs = await mp.FilesetResolver.forVisionTasks(new URL('vendor/wasm', location.href).href);
       const mk = async delegate => {
+        V.step = '手の モデル（2/3）' + (delegate === 'CPU' ? '・CPU' : '');
         V.hand = await mp.HandLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: new URL('vendor/models/hand_landmarker.task', location.href).href, delegate }, runningMode: 'VIDEO', numHands: 2, minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+        V.step = 'からだの モデル（3/3）' + (delegate === 'CPU' ? '・CPU' : '');
         V.pose = await mp.PoseLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: new URL('vendor/models/pose_landmarker_lite.task', location.href).href, delegate }, runningMode: 'VIDEO', numPoses: 1 });
       };
-      try { await mk('GPU'); V.delegate = 'GPU'; } catch (e) { console.warn('GPU だめ → CPU', e); await mk('CPU'); V.delegate = 'CPU'; }
+      // GPU で 25びょう たっても できない・だめな ときは CPU で
+      try { await timeout(mk('GPU'), 25000, 'gpu-timeout'); V.delegate = 'GPU'; } catch (e) { console.warn('GPU だめ → CPU', e); V.gpuErr = String(e && e.message || e); await mk('CPU'); V.delegate = 'CPU'; }
       V.ready = true;
     })();
     V.loading.catch(e => { V.loading = null; V.err = String(e && e.message || e); });
@@ -158,9 +163,9 @@
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('nocam');
     V.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } });
     video.srcObject = V.stream;
-    await video.play().catch(() => {});
+    await timeout(video.play(), 5000, 'play').catch(() => {});
   }
-  function stopCam() { V.running = false; V.onFrame = null; if (V.stream) { V.stream.getTracks().forEach(t => t.stop()); V.stream = null; } video.srcObject = null; releaseWake(); }
+  function stopCam() { V.running = false; V.onFrame = null; if (V.stream) { V.stream.getTracks().forEach(t => t.stop()); V.stream = null; } video.srcObject = null; video.className = ''; document.body.appendChild(video); releaseWake(); }
   function runLoop(onFrame) {
     V.onFrame = onFrame;
     if (V.running) return;
@@ -208,8 +213,8 @@
     const VW = video.videoWidth || 16, VH = video.videoHeight || 9;
     const sc = Math.min(w / VW, H / VH), ox = (w - VW * sc) / 2, oy = (H - VH * sc) / 2;
     const P = (x, y) => [w - (ox + x * VW * sc), oy + y * VH * sc];
-    g.fillStyle = '#0B1A2E'; g.fillRect(0, 0, w, H);
-    if (st.showVideo && video.readyState >= 2) { g.save(); g.translate(w, 0); g.scale(-1, 1); g.globalAlpha = 0.92; g.drawImage(video, ox, oy, VW * sc, VH * sc); g.restore(); }
+    g.clearRect(0, 0, w, H);
+    if (!st.showVideo) { g.fillStyle = '#0B1A2E'; g.fillRect(0, 0, w, H); }
     if (!info) return;
     const pose = info.pose;
     if (pose) {
@@ -329,24 +334,42 @@
     const box = h('div', { class: 'cam' }, cv, loading, status, fps);
     return { box, cv, status, fps, loading };
   }
+  function bootFail(cb, title, detail) {
+    cb.loading.hidden = false; cb.loading.innerHTML = '';
+    const ua = navigator.userAgent.replace(/^Mozilla\/5\.0 /, '');
+    cb.loading.append(h('div', null, h('span', { class: 'emo' }, '🙈'), title,
+      h('small', { style: 'font-size:15px;font-weight:500;opacity:.85;line-height:1.6;display:block;margin-top:6px' }, detail),
+      h('small', { style: 'font-size:11px;font-weight:500;opacity:.5;display:block;margin-top:8px;-webkit-user-select:text;user-select:text' }, ua + (V.gpuErr ? ' / gpu:' + V.gpuErr : '')),
+      h('button', { class: 'pill', type: 'button', style: 'margin-top:14px', onclick: () => go(cur) }, '🔄 もう いちど')));
+    cb.status.hidden = true;
+  }
   async function bootCam(cb, onFrame) {
-    try {
-      cb.loading.lastChild.textContent = 'カメラと よみとりの じゅんび ちゅう…';
-      await Promise.all([startCam(), loadVision()]);
-      cb.loading.hidden = true;
-      runLoop(onFrame);
-      return true;
-    } catch (e) {
+    // 1. カメラ
+    cb.loading.lastChild.textContent = 'カメラを ひらいています…';
+    try { await timeout(startCam(), 20000, 'camtimeout'); }
+    catch (e) {
       console.warn(e);
-      const msg = String(e && (e.name || e.message) || e);
-      cb.loading.innerHTML = '';
-      cb.loading.append(h('div', null, h('span', { class: 'emo' }, '🙈'),
-        /NotAllowed|Permission/i.test(msg) ? 'カメラを つかう ことが ゆるされていません。' : /nocam|NotFound/i.test(msg) ? 'カメラが みつかりません。' : 'じゅんびが できませんでした。',
-        h('br'), h('small', { style: 'font-size:15px;font-weight:500;opacity:.8' }, /NotAllowed|Permission/i.test(msg) ? 'iPad の「設定」→ Safari →「カメラ」を「許可」にして、もう いちど ひらいてください。' : (V.err || msg)),
-        h('br'), h('button', { class: 'pill', type: 'button', style: 'margin-top:14px', onclick: () => go(cur) }, '🔄 もう いちど')));
-      cb.status.hidden = true;
+      const msg = String(e && (e.name + ' ' + e.message) || e);
+      if (/NotAllowed|Permission|Security/i.test(msg)) bootFail(cb, 'カメラを つかう ことが ゆるされていません。', 'iPad の「設定」→「アプリ」→「Safari」→「カメラ」を「確認」か「許可」に して、この ページを ひらきなおしてください。（ホーム画面に 追加した アプリの ときは、いちど 完全に とじて ひらきなおす）');
+      else if (/nocam/.test(msg)) bootFail(cb, 'この 画面では カメラが つかえません。', 'Safari で ひらいてください（LINE・Google アプリなどの 中の ブラウザや、プライベートでない https 以外の ページでは カメラが つかえません）。');
+      else if (/NotFound|Overconstrained/i.test(msg)) bootFail(cb, 'カメラが みつかりません。', msg);
+      else if (/NotReadable|camtimeout/i.test(msg)) bootFail(cb, 'カメラを ひらけませんでした。', 'ほかの アプリ（カメラ・FaceTime など）を とじてから、もう いちど ためしてください。（' + msg + '）');
+      else bootFail(cb, 'カメラを ひらけませんでした。', msg);
       return false;
     }
+    if (!cb.box.isConnected) return false;
+    video.className = 'camvideo'; cb.box.insertBefore(video, cb.box.firstChild);
+    video.play().catch(() => {});
+    cb.loading.hidden = true;
+    // 2. よみとり（はじめては ダウンロードが あるので すこし かかる）
+    cb.status.hidden = false; cb.status.className = 'status';
+    const tick = setInterval(() => { if (!V.ready) cb.status.textContent = '⏳ よみとりの じゅんび：' + (V.step || '…'); }, 300);
+    try { await timeout(loadVision(), 120000, 'visiontimeout'); }
+    catch (e) { clearInterval(tick); console.warn(e); bootFail(cb, 'よみとりの じゅんびが できませんでした。', '止まった ところ：' + (V.step || '') + '／' + String(e && e.message || e) + '　インターネットに つながっているか たしかめて、もう いちど ためしてください。'); return false; }
+    clearInterval(tick);
+    if (!cb.box.isConnected) return false;
+    runLoop(onFrame);
+    return true;
   }
   function statusOf(seg, info) {
     if (!info.pose) return ['bad', '🙋 からだ（かた）が うつるように はなれてね'];
@@ -400,8 +423,8 @@
       if (kind === 'pick' && st.learn && !s.builtin && seq) { addSample(w, seq); saveSet(s); }
     }
     showIdle();
-    if (!recCount(s)) { cb.loading.hidden = true; cb.status.hidden = true; return; }
     const seg = newSeg();
+    if (!recCount(s)) { bootCam(cb, info => { drawCam(cb.cv, info, seg); cb.status.className = 'status'; cb.status.textContent = '📭 サインを とうろく すると つかえます'; }); leave = () => { stopCam(); }; return; }
     let busyUntil = 0;
     keepAwake();
     bootCam(cb, info => {
@@ -737,5 +760,5 @@
   loadSets().then(() => go('home')).catch(e => { console.error(e); go('home'); });
   // つかいそうな ときは さきに よみとりの じゅんびを はじめておく
   setTimeout(() => { if (recCount(active())) loadVision().catch(() => {}); }, 1500);
-  window.__sign = { E, V, get sets() { return SETS; }, st, prepFor, active };
+  window.__sign = { E, V, get sets() { return SETS; }, st, prepFor, active, loadVision };
 })();
