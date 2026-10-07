@@ -228,6 +228,11 @@
   .setrow .nm small { display: block; color: var(--sub); font-weight: 500; font-size: 13px; }
   .field { display: flex; flex-direction: column; gap: 4px; }
   .field input, .field select { height: 46px; border-radius: 12px; border: 2px solid var(--line); padding: 0 12px; font-size: 17px; font-weight: 600; }
+  .lic { font-size: 15px; font-weight: 500; line-height: 1.75; color: var(--ink); }
+  .lic h3 { font-size: 17px; margin: 14px 0 6px; } .lic h3:first-child { margin-top: 0; }
+  .lic p { margin: 0; } .lic a { color: #1864AB; }
+  .licitem { border: 2px solid #EEF2F7; border-radius: 14px; padding: 10px 14px; margin-bottom: 8px; }
+  .lic pre { white-space: pre-wrap; font-size: 11px; line-height: 1.5; background: #F8F9FA; border-radius: 10px; padding: 10px; max-height: 320px; overflow-y: auto; -webkit-user-select: text; user-select: text; }
   table.log { border-collapse: collapse; width: 100%; font-size: 15px; }
   table.log td, table.log th { border-bottom: 1px solid #EEF2F7; padding: 6px 8px; text-align: left; font-weight: 600; }
   .toast { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 80; background: #1F2937; color: #fff; padding: 12px 22px; border-radius: 999px; font-size: 17px; box-shadow: 0 8px 24px rgba(0,0,0,.25); animation: fadein .2s; max-width: 92vw; text-align: center; }
@@ -1517,9 +1522,9 @@ const VOCAB = (function () {
   $('#teacher').addEventListener('click', e => { if (e.target.id === 'teacher') closeTeacher(); });
   function renderTeacher() {
     const tabs = $('#tTabs'); tabs.innerHTML = '';
-    [['sets', '📚 セット・とうろく'], ['settings', '🛠️ せってい'], ['log', '📊 きろく'], ['help', '❓ つかいかた']].forEach(([k, t]) => tabs.append(h('button', { type: 'button', class: tTab === k ? 'on' : '', onclick: () => { tTab = k; renderTeacher(); } }, t)));
+    [['sets', '📚 セット・とうろく'], ['settings', '🛠️ せってい'], ['log', '📊 きろく'], ['help', '❓ つかいかた'], ['lic', '📜 ライセンス']].forEach(([k, t]) => tabs.append(h('button', { type: 'button', class: tTab === k ? 'on' : '', onclick: () => { tTab = k; renderTeacher(); } }, t)));
     const b = $('#tBody'); b.innerHTML = '';
-    ({ sets: tSets, settings: tSettings, log: tLog, help: tHelp })[tTab](b);
+    ({ sets: tSets, settings: tSettings, log: tLog, help: tHelp, lic: renderLicense })[tTab](b);
   }
   function tSets(b) {
     const s = active();
@@ -1562,7 +1567,8 @@ const VOCAB = (function () {
       range('おろす いち', 'restY', 0.9, 2.8, 0.05, v => v.toFixed(2), 'カメラ画面の 黄色い 線より 下に 手が あると「まっている」と みなします。すわって 机に 手を おく ときは 小さめに'),
       seg('カメラの えいぞう', 'showVideo', [[true, 'みせる'], [false, 'ほねだけ']], '映像が 気になる 子には「ほねだけ」'),
       seg('なじませ', 'learn', [[true, 'する'], [false, 'しない']], '「もしかして？」で えらんだ サインを その子の 見本として おぼえます（自分の セットのみ）'),
-      seg('すうじを みせる', 'debug', [[false, 'みせない'], [true, 'みせる']], '先生用：近さの すうじ・fps を 表示')
+      seg('すうじを みせる', 'debug', [[false, 'みせない'], [true, 'みせる']], '先生用：近さの すうじ・fps を 表示'),
+      h('p', { class: 'help', style: 'margin:10px 0 0;text-align:center' }, '© 2026 MieeL　学校や家庭での利用は自由です（無断転載・再配布・販売はお断り）。くわしくは「📜 ライセンス」')
     );
   }
   function tLog(b) {
@@ -1597,6 +1603,33 @@ const VOCAB = (function () {
     </div>`;
   }
 
+
+  /* ---------- ライセンス・著作権 ---------- */
+  function renderLicense(b) {
+    b.innerHTML = `<div class="lic">
+      <h3>このアプリ</h3>
+      <p><b>© 2026 MieeL（ミエル）</b>　<a href="https://www.mieel-support-school.com/" target="_blank" rel="noopener">www.mieel-support-school.com</a><br>
+      学校・家庭・放課後等デイサービス・療育機関などで、子どもの学習や支援のために使うことは自由です（費用はかかりません）。<br>
+      プログラム・画像・文章の無断転載・複製、改変しての公開・再配布、販売、有料の サービスや 商品への 組みこみは お断りします。くわしくは <a href="LICENSE.md" target="_blank" rel="noopener">LICENSE.md</a> を ご覧ください。</p>
+      <h3>使っている ソフトウェア</h3>
+      <div class="licitem"><b>MediaPipe Tasks Vision</b>（@mediapipe/tasks-vision 1.1.0）・モデル：hand_landmarker・pose_landmarker_lite<br>
+      Copyright The MediaPipe Authors / Google LLC<br>
+      Apache License, Version 2.0 で 公開されています。<a href="https://github.com/google-ai-edge/mediapipe" target="_blank" rel="noopener">github.com/google-ai-edge/mediapipe</a><br>
+      このアプリでは 変更せずに そのまま 同梱しています（vendor/ フォルダ）。<br>
+      <button class="pill" type="button" id="licFull" style="margin-top:8px;height:42px">📄 Apache License 2.0 の 全文を ひょうじ</button>
+      <pre id="licText" hidden></pre></div>
+      <div class="licitem"><b>フォント Klee One</b>　© Fontworks Inc.　SIL Open Font License 1.1（Google Fonts から 読みこみ）</div>
+      <div class="licitem"><b>絵文字</b>　iPad・パソコンに 入っている 標準の 絵文字フォントで 表示しています（アプリには ふくまれていません）。</div>
+      <h3>プライバシー</h3>
+      <p>カメラの 映像は 保存も 送信も しません。読み取りは すべて この端末の 中で 行います。きろくは この端末の 中だけに 保存されます。</p>
+    </div>`;
+    const btn = b.querySelector('#licFull'), pre = b.querySelector('#licText');
+    btn.addEventListener('click', async () => {
+      if (!pre.hidden) { pre.hidden = true; return; }
+      pre.hidden = false; pre.textContent = 'よみこみ ちゅう…';
+      try { const r = await fetch('vendor/LICENSE-APACHE-2.0.txt'); pre.textContent = r.ok ? await r.text() : 'https://www.apache.org/licenses/LICENSE-2.0'; } catch (e) { pre.textContent = 'オフラインの ため 表示できません。https://www.apache.org/licenses/LICENSE-2.0'; }
+    });
+  }
   /* ---------- ⚙️ ながおし ---------- */
   (function () {
     const g = $('#gear'); let t = null; const c = () => { clearTimeout(t); g.classList.remove('pressing'); };

@@ -30,3 +30,5 @@ Redistribution, modification for publication, resale, or inclusion in paid produ
 
 ## 使っている部品
 - 手・からだの読み取りに Google の MediaPipe Tasks Vision（vendor/ フォルダ）を使っています。MediaPipe は Apache License 2.0 で公開されており、その部分の権利は Google LLC にあります（https://github.com/google-ai-edge/mediapipe ・ https://www.apache.org/licenses/LICENSE-2.0）。
+- 全文は vendor/LICENSE-APACHE-2.0.txt にあります。
+- フォント Klee One（© Fontworks Inc.）は SIL Open Font License 1.1 で、Google Fonts から読み込んでいます。
