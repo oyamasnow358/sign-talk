@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<!--
+  © 2026 MieeL（ミエル） https://www.mieel-support-school.com/  All rights reserved.
+  学校・家庭・療育機関などで子どもの学習や支援に使うことは自由です。
+  プログラム・画像・文章の無断転載・複製、改変しての公開・再配布、販売はお断りします（くわしくは LICENSE.md）。
+  手・からだの読み取りには Google MediaPipe（Apache License 2.0）を使っています（vendor/）。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="サインでつたえる">
+<meta name="theme-color" content="#EEF4FF">
+<title>サインで つたえる｜MieeL</title>
+<link rel="apple-touch-icon" id="touchIcon" href="">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A4%9F%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #EEF4FF; --ink: #1F2937; --sub: #6B7280; --line: #D5E1F5; --main: #1C7ED6; --main-d: #1864AB; --go: #2F9E44; --go-d: #237A34;
+    --red: #E03131; --red-d: #B02525; --or: #F08C00; --vio: #7048E8; --vio-d: #5235C0;
+    --mieel: radial-gradient(circle at 50% 0%,#1B8FE8 0%,#2BB8D6 28%,#3FCB9E 45%,#8FD24A 58%,#F4D027 72%,#F7941E 100%);
+    --emoji: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+    --kyo: "Klee One","UD デジタル 教科書体 NK-R","UD Digital Kyokasho NK-R","YuKyokasho Yoko","Hiragino Maru Gothic ProN",sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--ink); font-family: "Hiragino Maru Gothic ProN","ヒラギノ丸ゴ ProN","BIZ UDPGothic","Yu Gothic UI","Meiryo",system-ui,sans-serif; font-weight: 700;
+    word-break: keep-all; overflow-wrap: anywhere; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; overscroll-behavior: none;
+    display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
+  input, select, textarea { font: inherit; -webkit-user-select: text; user-select: text; }
+  .emo { font-family: var(--emoji); font-weight: 400; line-height: 1; }
+  .kyo { font-family: var(--kyo); }
+  [hidden] { display: none !important; }
+
+  /* ---------- 上の バー ---------- */
+  .topbar { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 14px; min-height: 58px; }
+  .brand { flex: 1; display: flex; justify-content: center; align-items: center; gap: 12px; color: #6A86B8; font-size: 15px; letter-spacing: .08em; min-width: 0; }
+  .mieel-brand { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .orb-mini { width: 22px; height: 22px; border-radius: 50%; background: var(--mieel); flex: none; }
+  .mieel-brand strong { font-size: 16px; color: var(--ink); }
+  .mieel-brand .url { font-size: 12px; color: var(--sub); font-weight: 600; }
+  @media (max-width: 699px) { .topbar .url, .topbar .appname { display: none; } }
+  .tbtn { height: 48px; min-width: 48px; padding: 0 14px; border-radius: 999px; border: 3px solid var(--line); background: #fff; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .gear { position: relative; width: 50px; height: 50px; border-radius: 50%; border: none; background: transparent; opacity: .35; font-size: 26px; display: grid; place-items: center; touch-action: none; }
+  .gear::after { content: ""; position: absolute; inset: 2px; border-radius: 50%; border: 4px solid transparent; }
+  .gear.pressing { opacity: 1; }
+  .gear.pressing::after { border-color: var(--main); animation: ring 1.5s linear forwards; }
+  @keyframes ring { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 16px 14px; }
+  .screen { flex: 1; min-height: 0; display: flex; flex-direction: column; animation: fadein .25s ease-out; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes pop { 0% { transform: scale(.5); opacity: 0; } 70% { transform: scale(1.06); } 100% { transform: none; opacity: 1; } }
+  @keyframes shake { 20%, 60% { transform: translateX(-10px); } 40%, 80% { transform: translateX(10px); } }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 18px rgba(224,49,49,.0), inset 0 0 0 9999px rgba(224,49,49,.08); } }
+  .big-btn { min-width: min(300px, 78vw); min-height: 80px; padding: 0 28px; border: none; border-radius: 999px; color: #fff; font-size: clamp(22px, 3vw, 32px); display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+  .big-btn.go { background: var(--go); box-shadow: 0 8px 0 var(--go-d); }
+  .big-btn.blue { background: var(--main); box-shadow: 0 8px 0 var(--main-d); }
+  .big-btn.red { background: var(--red); box-shadow: 0 8px 0 var(--red-d); }
+  .big-btn.vio { background: var(--vio); box-shadow: 0 8px 0 var(--vio-d); }
+  .big-btn:active { transform: translateY(6px); box-shadow: 0 2px 0 rgba(0,0,0,.25); }
+  .big-btn:disabled { opacity: .45; }
+  .pill { height: 50px; padding: 0 18px; border-radius: 999px; border: 3px solid var(--line); background: #fff; font-size: 17px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 0 var(--line); white-space: nowrap; }
+  .pill:active { transform: translateY(2px); box-shadow: none; }
+  .pill.on { border-color: var(--main); background: #E7F1FF; color: var(--main-d); }
+  .pill.danger { color: var(--red); border-color: #FFC9C9; }
+  .pill.small { height: 40px; font-size: 15px; padding: 0 12px; }
+
+  /* ---------- ホーム ---------- */
+  .home { align-items: center; justify-content: center; gap: 18px; overflow-y: auto; }
+  .home h1 { font-size: clamp(32px, 5vw, 56px); margin: 0; text-align: center; }
+  .home h1 .emo { font-size: 1.1em; vertical-align: -0.1em; }
+  .home .lead { color: var(--sub); font-weight: 500; font-size: 17px; text-align: center; margin: 0; line-height: 1.6; }
+  .setchip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 999px; background: #fff; border: 3px solid var(--line); font-size: 17px; }
+  .setchip b { color: var(--main-d); }
+  .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 340px)); gap: 18px; justify-content: center; width: 100%; }
+  .mcard { border: 4px solid var(--line); background: #fff; border-radius: 30px; padding: 24px 14px 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; box-shadow: 0 7px 0 rgba(0,0,0,.08); text-align: center; }
+  .mcard:active { transform: translateY(5px); box-shadow: 0 2px 0 rgba(0,0,0,.08); }
+  .mcard .emo { font-size: 70px; }
+  .mcard .nm { font-size: 28px; }
+  .mcard small { color: var(--sub); font-weight: 500; font-size: 15px; line-height: 1.5; }
+  .mcard.main { border-color: #74C0FC; background: linear-gradient(#fff, #E7F5FF); }
+  .notice { max-width: 640px; background: #FFF9DB; border: 3px solid #FFE066; border-radius: 20px; padding: 14px 18px; font-size: 16px; line-height: 1.6; font-weight: 600; }
+
+  /* ---------- カメラの まど ---------- */
+  .cam { position: relative; background: #0B1A2E; border-radius: 26px; overflow: hidden; min-height: 0; }
+  .cam canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .cam .status { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: rgba(255,255,255,.94); color: var(--ink); padding: 10px 20px; border-radius: 999px; font-size: clamp(16px, 2vw, 21px); white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.2); display: flex; gap: 8px; align-items: center; }
+  .cam .status.sign { background: #FFF3BF; }
+  .cam .status.bad { background: #FFE3E3; color: var(--red-d); }
+  .cam .fps { position: absolute; right: 12px; top: 10px; color: rgba(255,255,255,.6); font-size: 12px; font-weight: 500; }
+  .cam .loading { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; text-align: center; font-size: 20px; line-height: 1.7; padding: 20px; }
+  .cam .loading .emo { font-size: 60px; display: block; animation: shake 1.2s infinite; }
+
+  /* ---------- つたえる ---------- */
+  .talk { display: grid; grid-template-columns: minmax(0, 46fr) minmax(0, 54fr); grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; }
+  .talk .ptop { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; min-height: 54px; }
+  .talk .ptop .ttl { flex: 1; text-align: center; font-size: clamp(20px, 2.6vw, 28px); }
+  .talk .cam { grid-column: 1; grid-row: 2; }
+  .talk .result { grid-column: 2; grid-row: 2; }
+  .talk .strip { grid-column: 1 / -1; grid-row: 3; }
+  @media (orientation: portrait) {
+    .talk { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 46fr) minmax(0, 54fr) auto; }
+    .talk .cam { grid-column: 1; grid-row: 2; } .talk .result { grid-column: 1; grid-row: 3; } .talk .strip { grid-row: 4; }
+  }
+  .result { background: #fff; border: 4px solid var(--line); border-radius: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 16px; position: relative; overflow: hidden; min-height: 0; }
+  .result .emo { font-size: clamp(90px, 15vmin, 190px); }
+  .result .word { font-family: var(--kyo); font-size: clamp(48px, 9vmin, 120px); line-height: 1.15; text-align: center; }
+  .result .phrase { margin-top: 8px; font-size: clamp(18px, 2.6vmin, 28px); color: var(--sub); text-align: center; }
+  .result .hint { color: var(--sub); font-weight: 500; font-size: 18px; text-align: center; line-height: 1.7; }
+  .result .hint .emo { font-size: 80px; display: block; margin-bottom: 8px; }
+  .result.pop > * { animation: pop .45s ease-out; }
+  .result .again { position: absolute; right: 14px; bottom: 14px; }
+  .result .scores { position: absolute; left: 12px; top: 10px; font-size: 12px; color: var(--sub); font-weight: 500; text-align: left; line-height: 1.5; }
+  .strip { display: flex; align-items: center; gap: 10px; background: #fff; border: 3px solid var(--line); border-radius: 24px; padding: 8px 10px; min-height: 76px; }
+  .strip .words { flex: 1; display: flex; gap: 8px; overflow-x: auto; align-items: center; min-height: 56px; }
+  .strip .words:empty::before { content: "サインした ことばが ここに ならびます"; color: #ADB5BD; font-weight: 500; padding-left: 8px; }
+  .wchip { flex: none; display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 16px; background: #E7F5FF; font-family: var(--kyo); font-size: 26px; border: none; }
+  .wchip .emo { font-size: 28px; }
+  .wchip.u { background: #FFE3E3; }
+
+  /* 画面いっぱいの カード */
+  .overlay { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(238,244,255,.88); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); padding: 20px; }
+  .bigcard { background: #fff; border: 8px solid var(--c, var(--main)); border-radius: 44px; padding: 3vmin 6vmin 4vmin; display: flex; flex-direction: column; align-items: center; gap: 1vmin; box-shadow: 0 20px 60px rgba(0,0,0,.18); animation: pop .5s ease-out; max-width: 92vw; }
+  .bigcard .emo { font-size: min(30vmin, 260px); }
+  .bigcard .word { font-family: var(--kyo); font-size: min(17vmin, 170px); line-height: 1.1; text-align: center; }
+  .bigcard .phrase { margin-top: 1.4vmin; font-size: min(5vmin, 40px); color: var(--sub); text-align: center; }
+  .overlay.urgent { background: rgba(255,227,227,.92); }
+  .overlay.urgent .bigcard { border-color: var(--red); animation: pop .5s ease-out, pulse 1.2s ease-in-out .5s infinite; }
+  .overlay .ack { margin-top: 2vmin; }
+  .overlay .tapnote { margin-top: 10px; color: var(--sub); font-size: 16px; font-weight: 500; }
+  .maybe { background: #fff; border-radius: 36px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.18); animation: pop .4s ease-out; max-width: 96vw; }
+  .maybe h2 { margin: 0; font-size: clamp(26px, 4vw, 40px); }
+  .maybe .cands { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .cand { width: clamp(150px, 22vw, 230px); border: 5px solid var(--line); border-radius: 28px; background: #fff; padding: 16px 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: 0 6px 0 rgba(0,0,0,.08); }
+  .cand:active { transform: translateY(4px); box-shadow: none; }
+  .cand .emo { font-size: clamp(60px, 9vw, 96px); }
+  .cand .word { font-family: var(--kyo); font-size: clamp(26px, 3.6vw, 40px); }
+
+  /* ---------- とうろく（スタジオ） ---------- */
+  .studio { display: grid; grid-template-columns: minmax(0, 42fr) minmax(0, 58fr); grid-template-rows: auto minmax(0, 1fr); gap: 12px; }
+  .studio .ptop { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; min-height: 54px; }
+  .studio .ptop .ttl { flex: 1; text-align: center; font-size: clamp(18px, 2.4vw, 26px); }
+  @media (orientation: portrait) { .studio { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 40fr) minmax(0, 60fr); } }
+  .panel { background: #fff; border: 3px solid var(--line); border-radius: 26px; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .panel .phead { flex: none; padding: 12px 12px 8px; display: flex; flex-direction: column; gap: 8px; border-bottom: 2px solid #EEF2F7; }
+  .panel .pbody { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; -webkit-overflow-scrolling: touch; }
+  .cats { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+  .cats button { flex: none; height: 40px; padding: 0 12px; border-radius: 999px; border: 2px solid var(--line); background: #fff; font-size: 15px; display: flex; gap: 4px; align-items: center; }
+  .cats button.on { background: var(--c, var(--main)); border-color: var(--c, var(--main)); color: #fff; }
+  .search { display: flex; gap: 8px; align-items: center; }
+  .search input { flex: 1; height: 44px; border-radius: 14px; border: 2px solid var(--line); padding: 0 14px; font-size: 17px; font-weight: 600; min-width: 0; }
+  .wgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+  .wcard { position: relative; border: 3px solid var(--line); background: #fff; border-radius: 18px; padding: 10px 4px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 112px; }
+  .wcard .emo { font-size: 40px; }
+  .wcard .nm { font-family: var(--kyo); font-size: 19px; line-height: 1.2; text-align: center; }
+  .wcard .dots { display: flex; gap: 3px; }
+  .wcard .dots i { width: 9px; height: 9px; border-radius: 50%; background: #DEE2E6; }
+  .wcard .dots i.on { background: var(--go); }
+  .wcard.has { border-color: #B2F2BB; }
+  .wcard.off { opacity: .4; }
+  .wcard.u::after { content: "いそぎ"; position: absolute; top: 4px; right: 6px; font-size: 10px; color: #fff; background: var(--red); border-radius: 6px; padding: 1px 5px; }
+  .wcard.add { border-style: dashed; border-color: var(--main); color: var(--main); justify-content: center; }
+  .detail { display: flex; flex-direction: column; gap: 12px; }
+  .dhead { display: flex; align-items: center; gap: 14px; }
+  .dhead .emo { font-size: 72px; }
+  .dhead .nm { font-family: var(--kyo); font-size: 40px; line-height: 1.1; }
+  .dhead small { display: block; color: var(--sub); font-weight: 500; font-size: 15px; font-family: inherit; }
+  .recrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .samples { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .smp { position: relative; border: 3px solid var(--line); border-radius: 16px; background: #0B1A2E; aspect-ratio: 4 / 3; overflow: hidden; }
+  .smp canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .smp .no { position: absolute; left: 8px; top: 6px; color: #fff; font-size: 14px; }
+  .smp .del { position: absolute; right: 4px; top: 4px; width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(255,255,255,.9); color: var(--red); font-size: 18px; }
+  .memo { width: 100%; min-height: 64px; border: 2px solid var(--line); border-radius: 14px; padding: 10px 12px; font-size: 16px; font-weight: 500; resize: vertical; }
+  .warn { background: #FFF4E6; border: 2px solid #FFD8A8; border-radius: 14px; padding: 10px 14px; font-size: 15px; line-height: 1.6; }
+  .okmsg { background: #EBFBEE; border: 2px solid #B2F2BB; border-radius: 14px; padding: 10px 14px; font-size: 15px; line-height: 1.6; }
+  .countdown { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 140px; text-shadow: 0 6px 30px rgba(0,0,0,.6); pointer-events: none; font-family: var(--kyo); }
+  .recdot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--red); animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .2; } }
+
+  /* ---------- ことばを みる ---------- */
+  .words-scr { display: flex; flex-direction: column; gap: 12px; }
+  .words-scr .ptop { display: flex; align-items: center; gap: 10px; min-height: 54px; }
+  .words-scr .ptop .ttl { flex: 1; text-align: center; font-size: clamp(20px, 2.6vw, 28px); }
+  .viewer { position: fixed; inset: 0; z-index: 45; background: rgba(238,244,255,.94); display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .vbox { background: #fff; border-radius: 36px; padding: 20px; display: flex; gap: 20px; align-items: center; box-shadow: 0 20px 60px rgba(0,0,0,.18); animation: pop .4s ease-out; max-width: 96vw; max-height: 92vh; }
+  @media (orientation: portrait) { .vbox { flex-direction: column; } }
+  .vbox .anim { position: relative; width: min(46vw, 520px); aspect-ratio: 4 / 3; border-radius: 24px; overflow: hidden; background: #0B1A2E; }
+  @media (orientation: portrait) { .vbox .anim { width: min(84vw, 560px); } }
+  .vbox .anim canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .vbox .side { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 220px; }
+  .vbox .side .emo { font-size: 110px; }
+  .vbox .side .word { font-family: var(--kyo); font-size: 64px; }
+  .vbox .side .memo-t { color: var(--sub); font-size: 16px; font-weight: 500; max-width: 320px; line-height: 1.6; text-align: center; }
+
+  /* ---------- 先生メニュー・設定 ---------- */
+  .modal { position: fixed; inset: 0; z-index: 60; background: rgba(15,23,42,.45); display: none; align-items: center; justify-content: center; padding: 16px; }
+  .modal.open { display: flex; }
+  .sheet { background: #fff; border-radius: 28px; width: min(760px, 100%); max-height: 100%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  .sheet .shead { flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 2px solid #EEF2F7; }
+  .sheet .shead h2 { flex: 1; margin: 0; font-size: 22px; }
+  .sheet .sbody { flex: 1; overflow-y: auto; padding: 14px 18px 22px; display: flex; flex-direction: column; gap: 14px; -webkit-overflow-scrolling: touch; }
+  .tabs { display: flex; gap: 6px; padding: 10px 14px 0; flex-wrap: wrap; }
+  .tabs button { height: 46px; padding: 0 16px; border-radius: 14px 14px 0 0; border: 2px solid var(--line); border-bottom: none; background: #F8FAFC; font-size: 16px; }
+  .tabs button.on { background: #fff; color: var(--main-d); border-color: var(--main); }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .row > label:first-child, .row .lb { min-width: 150px; font-size: 16px; }
+  .row small, .help { color: var(--sub); font-weight: 500; font-size: 14px; line-height: 1.6; }
+  .seg { display: inline-flex; border: 2px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .seg button { height: 44px; padding: 0 14px; border: none; background: #fff; font-size: 15px; border-right: 2px solid var(--line); }
+  .seg button:last-child { border-right: none; }
+  .seg button.on { background: var(--main); color: #fff; }
+  input[type=range] { width: 220px; }
+  .setlist { display: flex; flex-direction: column; gap: 8px; }
+  .setrow { display: flex; align-items: center; gap: 10px; border: 3px solid var(--line); border-radius: 18px; padding: 10px 12px; }
+  .setrow.on { border-color: var(--main); background: #F1F8FF; }
+  .setrow .nm { flex: 1; font-size: 18px; }
+  .setrow .nm small { display: block; color: var(--sub); font-weight: 500; font-size: 13px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field input, .field select { height: 46px; border-radius: 12px; border: 2px solid var(--line); padding: 0 12px; font-size: 17px; font-weight: 600; }
+  table.log { border-collapse: collapse; width: 100%; font-size: 15px; }
+  table.log td, table.log th { border-bottom: 1px solid #EEF2F7; padding: 6px 8px; text-align: left; font-weight: 600; }
+  .toast { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 80; background: #1F2937; color: #fff; padding: 12px 22px; border-radius: 999px; font-size: 17px; box-shadow: 0 8px 24px rgba(0,0,0,.25); animation: fadein .2s; max-width: 92vw; text-align: center; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <button class="tbtn" id="homeBtn" type="button" hidden>🏠 <span>ホーム</span></button>
+  <div class="brand"><span class="mieel-brand"><span class="orb-mini"></span><strong>MieeL</strong><span class="url">www.mieel-support-school.com</span></span><span class="appname">サインで つたえる</span></div>
+  <button class="gear" id="gear" type="button" aria-label="先生用メニュー（ながおし）">⚙️</button>
+</div>
+<main id="main"></main>
+
+<div class="modal" id="teacher"><div class="sheet">
+  <div class="shead"><h2>⚙️ 先生用メニュー</h2><button class="pill small" type="button" id="tClose">とじる</button></div>
+  <div class="tabs" id="tTabs"></div>
+  <div class="sbody" id="tBody"></div>
+</div></div>
+<div class="modal" id="editor"><div class="sheet" style="width:min(560px,100%)">
+  <div class="shead"><h2 id="edTitle">ことば</h2><button class="pill small" type="button" id="edClose">とじる</button></div>
+  <div class="sbody" id="edBody"></div>
+</div></div>
+<input type="file" id="fileIn" accept=".json,application/json" hidden>
+<video id="video" playsinline muted autoplay style="position:fixed;width:2px;height:2px;opacity:0;pointer-events:none;left:0;top:0"></video>
+
+<script>
+function jaSay(t) {
+  // 読み上げで 単語の あたまの「は」「へ」が 助詞（わ・え）と 読まれないように カタカナに する（はこ→ハこ、へや→ヘや）
+  return String(t == null ? '' : t).replace(/なかまはずれ/g, '仲間外れ').replace(/(^|[\s、。！？!?・（(「『])([はへ])(?=[\u3041-\u3096\u30A1-\u30FA\u30FC\u4E00-\u9FFF])/g, function (m, a, c) { return a + (c === 'は' ? 'ハ' : 'ヘ'); });
+}
+
+/* ============================================================
+   ことばの リスト（はじめから 入っている ことば）
+   1行 = 「えもじ|ことば|ていねいな いいかた|よみあげ用（漢字など・なくてもよい）|しるし」
+   しるし：u = いそぎ（トイレ・いたい など。赤く光って くりかえし 知らせる）
+   ことばは 子どもが 読みやすい ひらがな。よみあげが まちがいやすい ものだけ 4つめに 漢字を 入れる
+   ============================================================ */
+const VOCAB_CATS = [
+  { id: 'kyu', name: 'いそぎ・からだ', e: '🚨', c: '#E03131' },
+  { id: 'aisatsu', name: 'あいさつ・へんじ', e: '👋', c: '#1C7ED6' },
+  { id: 'kimochi', name: 'きもち', e: '😊', c: '#F08C00' },
+  { id: 'seikatsu', name: 'せいかつ', e: '🪥', c: '#0CA678' },
+  { id: 'taberu', name: 'たべる・のむ', e: '🍙', c: '#E8590C' },
+  { id: 'asobi', name: 'あそび・すきなこと', e: '🧸', c: '#AE3EC9' },
+  { id: 'hito', name: 'ひと', e: '🧑‍🤝‍🧑', c: '#5C7CFA' },
+  { id: 'basho', name: 'ばしょ・のりもの', e: '🏫', c: '#2F9E44' },
+  { id: 'gakkou', name: 'がっこう・もの', e: '🎒', c: '#1098AD' },
+  { id: 'ugoki', name: 'すること', e: '🏃', c: '#D6336C' },
+  { id: 'yousu', name: 'ようす・いろ', e: '🌈', c: '#7048E8' },
+  { id: 'toki', name: 'とき・かず', e: '⏰', c: '#495057' }
+];
+const VOCAB_SRC = {
+  kyu: `
+🚻|トイレ|トイレに いきたいです||u
+🤕|いたい|いたいです||u
+🆘|たすけて|たすけてください||u
+🤢|きもちわるい|きもちが わるいです||u
+🩸|ち が でた|ちが でました|血が出た|u
+🥵|あつい|あついです
+🥶|さむい|さむいです
+🤒|ねつ|ねつが あるみたいです|熱
+🤧|はなみず|はなみずが でます|鼻水
+😷|せき|せきが でます
+🦟|かゆい|かゆいです
+💩|うんち|うんちが でそうです
+💧|おしっこ|おしっこが でそうです
+🙇|やすみたい|すこし やすみたいです
+🔇|うるさい|うるさくて つらいです
+😎|まぶしい|まぶしいです
+🧍|ひとりに なりたい|ひとりに なりたいです
+🧠|あたま|あたま
+😖|おなか|おなか
+✋|て|て|手
+🦶|あし|あし|足
+👀|め|め|目
+👂|みみ|みみ|耳
+👃|はな|はな|鼻
+🦷|は|は|歯
+💊|くすり|くすりを ください|薬`,
+  aisatsu: `
+🌅|おはよう|おはようございます
+👋|こんにちは|こんにちは
+🙋|さようなら|さようなら
+🙏|ありがとう|ありがとうございます
+🙇|ごめんなさい|ごめんなさい
+🤲|おねがい|おねがいします
+⭕|はい|はい
+❌|いいえ|いいえ
+🙅|いや|いやです
+👌|いいよ|いいですよ
+💡|わかった|わかりました
+❓|わからない|わかりません
+🔁|もういちど|もういちど おねがいします
+✋|まって|ちょっと まってください
+🍴|いただきます|いただきます
+😋|ごちそうさま|ごちそうさまでした
+🌙|おやすみ|おやすみなさい
+🤝|よろしく|よろしく おねがいします
+👍|だいじょうぶ|だいじょうぶです
+🌟|すごい|すごいね
+💪|がんばる|がんばります
+🎉|やったね|やったね`,
+  kimochi: `
+😊|うれしい|うれしいです
+😆|たのしい|たのしいです
+😢|かなしい|かなしいです
+😠|おこってる|おこっています
+😨|こわい|こわいです
+🥺|さびしい|さびしいです
+❤️|すき|すきです
+💔|きらい|きらいです
+😳|はずかしい|はずかしいです
+😲|びっくり|びっくりしました
+😩|つかれた|つかれました
+😪|ねむい|ねむいです
+🤣|おもしろい|おもしろいです
+😌|あんしん|あんしんしました
+😤|いらいら|いらいらします
+😟|しんぱい|しんぱいです
+😣|がまん|がまんしています
+🤔|かんがえちゅう|いま かんがえています`,
+  seikatsu: `
+🧼|てを あらう|てを あらいたいです|手を洗う
+🪥|はみがき|はみがきを します
+🛁|おふろ|おふろに はいりたいです
+👕|きがえ|きがえたいです
+🛏️|ねる|ねたいです
+⏰|おきる|おきます
+🛋️|やすむ|やすみたいです
+🧻|ティッシュ|ティッシュを ください
+😴|ひるね|ひるねを したいです
+🚿|シャワー|シャワーを あびたいです
+💇|かみ|かみ|髪
+🧹|そうじ|そうじを します
+👟|くつ|くつ
+🧢|ぼうし|ぼうし
+🧥|うわぎ|うわぎ|上着`,
+  taberu: `
+🍽️|たべる|たべたいです
+🥤|のむ|のみたいです
+🍵|おちゃ|おちゃを ください|お茶
+💧|みず|みずを ください|水
+🥛|ぎゅうにゅう|ぎゅうにゅうを ください|牛乳
+🧃|ジュース|ジュースを ください
+🍚|ごはん|ごはん
+🍞|パン|パン
+🍪|おかし|おかしを ください
+🍎|りんご|りんご
+🍌|バナナ|バナナ
+🍓|いちご|いちご
+🍊|みかん|みかん
+🍇|ぶどう|ぶどう
+🍙|おにぎり|おにぎり
+🍛|カレー|カレー
+🍜|めん|めん|麺
+🥚|たまご|たまご
+🍖|にく|にく|肉
+🐟|さかな|さかな|魚
+🥦|やさい|やさい|野菜
+🍦|アイス|アイスを ください
+🍰|ケーキ|ケーキ
+🍱|きゅうしょく|きゅうしょく|給食
+😋|おいしい|おいしいです
+😖|まずい|にがてな あじです
+➕|もっと|もっと ください
+🍚|おかわり|おかわりを ください
+🚫|いらない|いりません
+🤏|すこし|すこしだけ ください
+🙌|いっぱい|いっぱい ください
+🍬|あまい|あまいです
+🌶️|からい|からいです
+🤲|ください|ください`,
+  asobi: `
+🧸|あそぶ|あそびたいです
+🎵|おんがく|おんがくを ききたいです
+🎤|うた|うたいたいです
+💃|ダンス|ダンスを したいです
+🎨|おえかき|おえかきを したいです
+📖|ほん|ほんを よみたいです|本
+🧱|ブロック|ブロックで あそびたいです
+🧩|パズル|パズルを したいです
+⚽|ボール|ボールで あそびたいです
+🛝|すべりだい|すべりだいに いきたいです
+🌳|そと|そとに いきたいです|外
+📺|テレビ|テレビを みたいです
+📱|タブレット|タブレットを つかいたいです
+🎮|ゲーム|ゲームを したいです
+🚗|くるま|くるま|車
+🚃|でんしゃ|でんしゃ|電車
+✈️|ひこうき|ひこうき|飛行機
+🫧|しゃぼんだま|しゃぼんだまを したいです
+🥁|たいこ|たいこを たたきたいです
+🙈|かくれんぼ|かくれんぼを しよう
+🏃|おにごっこ|おにごっこを しよう
+🏊|プール|プールに はいりたいです
+🚶|さんぽ|さんぽに いきたいです
+🤸|トランポリン|トランポリンを したいです
+🎈|ふうせん|ふうせん
+🐶|いぬ|いぬ|犬
+🐱|ねこ|ねこ|猫
+🐰|うさぎ|うさぎ`,
+  hito: `
+🙋|わたし|わたし
+👉|あなた|あなた
+🧑‍🏫|せんせい|せんせい|先生
+🧑‍🤝‍🧑|ともだち|ともだち|友達
+👩|おかあさん|おかあさん
+👨|おとうさん|おとうさん
+👦|おにいさん|おにいさん
+👧|おねえさん|おねえさん
+🧒|おとうと|おとうと|弟
+👧|いもうと|いもうと|妹
+👴|おじいちゃん|おじいちゃん
+👵|おばあちゃん|おばあちゃん
+👶|あかちゃん|あかちゃん
+👨‍👩‍👧|かぞく|かぞく|家族
+🙌|みんな|みんな
+👫|いっしょ|いっしょに しよう`,
+  basho: `
+🏫|がっこう|がっこう|学校
+🏠|いえ|いえ|家
+🏡|かえる|おうちに かえりたいです|帰る
+🚶|いく|いきたいです|行く
+🙋|くる|きてください|来る
+🤸|たいいくかん|たいいくかん|体育館
+🩹|ほけんしつ|ほけんしつに いきたいです|保健室
+🏥|びょういん|びょういん|病院
+🏪|おみせ|おみせ|お店
+🛝|こうえん|こうえん|公園
+🚌|バス|バス
+🚪|きょうしつ|きょうしつ|教室
+⛩️|ここ|ここ
+🗺️|どこ|どこですか`,
+  gakkou: `
+📚|じゅぎょう|じゅぎょう|授業
+✏️|べんきょう|べんきょう|勉強
+📝|しゅくだい|しゅくだい|宿題
+☕|きゅうけい|きゅうけいしたいです|休憩
+▶️|はじめ|はじめます
+🏁|おわり|おわりです
+🔜|つぎ|つぎは なに？|次
+🪑|いす|いす
+🗄️|つくえ|つくえ|机
+🎒|かばん|かばん
+✂️|はさみ|はさみを ください
+🖍️|えんぴつ|えんぴつを ください|鉛筆
+📄|かみ|かみを ください|紙
+🧴|のり|のりを ください
+📅|よてい|よていを おしえてください|予定
+🔢|じゅんばん|じゅんばんです|順番`,
+  ugoki: `
+👀|みる|みたいです|見る
+👂|きく|ききたいです|聞く
+✍️|かく|かきたいです|書く
+📖|よむ|よみたいです|読む
+🛠️|つくる|つくりたいです|作る
+🪑|すわる|すわります|座る
+🧍|たつ|たちます|立つ
+🏃|はしる|はしりたいです|走る
+🚶|あるく|あるきます|歩く
+🤝|てつだって|てつだってください|手伝って
+🤲|かして|かしてください|貸して
+🎁|あげる|あげます
+🙏|ちょうだい|ちょうだい
+✋|さわる|さわりたいです|触る
+📦|あける|あけてください|開ける
+🚪|しめる|しめてください|閉める
+🧹|かたづけ|かたづけます|片付け
+🚶‍♂️|ならぶ|ならびます|並ぶ
+🤫|しずかに|しずかに してください|静かに
+🔍|さがす|さがしています|探す
+🔄|かわって|かわってください|代わって
+🙋|やりたい|やりたいです
+🙅|やめて|やめてください
+✅|できた|できました
+🆗|もういい|もう いいです`,
+  yousu: `
+🐘|おおきい|おおきい|大きい
+🐜|ちいさい|ちいさい|小さい
+🐇|はやい|はやい|速い
+🐢|おそい|おそい|遅い
+✨|きれい|きれいです
+🫥|きたない|きたないです
+🟰|おなじ|おなじです
+↔️|ちがう|ちがいます
+👍|いい|いいです
+👎|だめ|だめです
+⬆️|うえ|うえ|上
+⬇️|した|した|下
+🔴|あか|あか|赤
+🔵|あお|あお|青
+🟡|きいろ|きいろ|黄色
+🟢|みどり|みどり|緑
+⚪|しろ|しろ|白
+⚫|くろ|くろ|黒
+🩷|ピンク|ピンク
+🤔|なに|なにですか|何
+🕵️|だれ|だれですか|誰
+🤷|どうして|どうしてですか`,
+  toki: `
+⏱️|いま|いま|今
+📅|きょう|きょう|今日
+🌄|あした|あした|明日
+🌇|きのう|きのう|昨日
+🌅|あさ|あさ|朝
+☀️|ひる|ひる|昼
+🌙|よる|よる|夜
+⏩|はやく|はやく してください|早く
+🐌|ゆっくり|ゆっくり してください
+⏳|あとで|あとで
+🔂|もうすこし|もうすこし
+1️⃣|いち|いち|1
+2️⃣|に|に|2
+3️⃣|さん|さん|3
+4️⃣|よん|よん|4
+5️⃣|ご|ご|5
+6️⃣|ろく|ろく|6
+7️⃣|なな|なな|7
+8️⃣|はち|はち|8
+9️⃣|きゅう|きゅう|9
+🔟|じゅう|じゅう|10`
+};
+// → [{ id, cat, e, w, p, s, u }]
+const VOCAB = (function () {
+  const out = [], seen = {};
+  VOCAB_CATS.forEach(c => VOCAB_SRC[c.id].trim().split('\n').forEach((line, i) => {
+    const a = line.split('|');
+    let id = c.id + '-' + a[1].replace(/\s+/g, '');
+    while (seen[id]) id += '2';
+    seen[id] = 1;
+    out.push({ id, cat: c.id, e: a[0], w: a[1], p: a[2] || a[1], s: a[3] || '', u: (a[4] || '').indexOf('u') >= 0 });
+  }));
+  return out;
+})();
+
+/* ============================================================
+   サインエンジン（カメラの点 → からだ基準の点 → 特徴 → 見本と照らし合わせ）
+   ・ブラウザでも node でも動く（テスト用に module.exports も出す）
+   ・座標は「かたの まんなか」が 0、「かたはば」が 1。x は 見ている人から見て右（＝サインする人の左）が ＋、y は下が ＋
+   ============================================================ */
+(function (root) {
+  'use strict';
+  const L = 20;            // 見本・入力を この コマ数に そろえる
+  const NH = 63;           // 手 1つ = 21点 × xyz
+  const FMT = 1;           // 見本データの 形式 番号
+
+  /* ---------- カメラの結果 → からだ基準の 1コマ ---------- */
+  // hands: [[{x,y,z}×21], …]  handed: [[{categoryName}], …]  pose: [{x,y,z,visibility}×33]  W,H: 映像の大きさ
+  function frameFrom(hands, handed, pose, W, H, lefty) {
+    if (!pose || !pose[11] || !pose[12]) return null;
+    const vis = p => p.visibility == null || p.visibility > 0.45;
+    if (!vis(pose[11]) || !vis(pose[12])) return null;
+    const px = p => [p.x * W, p.y * H, (p.z || 0) * W];
+    const Ls = px(pose[11]), Rs = px(pose[12]);
+    const O = [(Ls[0] + Rs[0]) / 2, (Ls[1] + Rs[1]) / 2];
+    let ux = [Ls[0] - Rs[0], Ls[1] - Rs[1]];
+    const s = Math.hypot(ux[0], ux[1]);
+    if (s < 8) return null;
+    ux = [ux[0] / s, ux[1] / s];
+    const vy = [-ux[1], ux[0]];
+    const B = q => { const dx = q[0] - O[0], dy = q[1] - O[1]; return [(dx * ux[0] + dy * ux[1]) / s, (dx * vy[0] + dy * vy[1]) / s, q[2] / s]; };
+    // 手を「右手・左手」に 分ける（からだの 手首に 近いほう。だめなら モデルの 左右を 反対に 読む）
+    const wL = pose[15] && vis(pose[15]) ? px(pose[15]) : null, wR = pose[16] && vis(pose[16]) ? px(pose[16]) : null;
+    let R = null, Lh = null;
+    const list = (hands || []).map((h, i) => {
+      const w = px(h[0]);
+      let side;
+      if (wL && wR) side = Math.hypot(w[0] - wR[0], w[1] - wR[1]) <= Math.hypot(w[0] - wL[0], w[1] - wL[1]) ? 'R' : 'L';
+      else { const c = handed && handed[i] && handed[i][0] && handed[i][0].categoryName; side = c === 'Left' ? 'R' : c === 'Right' ? 'L' : (w[0] < O[0] ? 'R' : 'L'); }
+      return { h, side, x: w[0] };
+    });
+    if (list.length === 2 && list[0].side === list[1].side) { const a = list[0].x < list[1].x ? 0 : 1; list[a].side = 'R'; list[1 - a].side = 'L'; }
+    list.forEach(o => { if (o.side === 'R') R = o.h; else Lh = o.h; });
+    const conv = h => { if (!h) return null; const a = new Float32Array(NH); for (let k = 0; k < 21; k++) { const b = B(px(h[k])); a[k * 3] = b[0]; a[k * 3 + 1] = b[1]; a[k * 3 + 2] = b[2]; } return a; };
+    const nose = B(px(pose[0])), mo = pose[9] && pose[10] ? B([(pose[9].x + pose[10].x) / 2 * W, (pose[9].y + pose[10].y) / 2 * H, 0]) : nose;
+    let fr = { d: conv(R), n: conv(Lh), f: [nose[0], nose[1], mo[0], mo[1]] };
+    if (lefty) fr = mirrorFrame(fr);      // 左ききは 右ききの 形に そろえる
+    return fr;
+  }
+
+  function mirrorHand(a) { if (!a) return null; const b = new Float32Array(a); for (let k = 0; k < 21; k++) b[k * 3] = -a[k * 3]; return b; }
+  function mirrorFrame(fr) { return fr && { d: mirrorHand(fr.n), n: mirrorHand(fr.d), f: [-fr.f[0], fr.f[1], -fr.f[2], fr.f[3]] }; }
+  function mirrorSeq(seq) { return seq.map(mirrorFrame); }
+
+  /* ---------- 手のひらの まんなか ---------- */
+  function palm(a) { if (!a) return null; let x = 0, y = 0; [0, 5, 9, 13, 17].forEach(k => { x += a[k * 3]; y += a[k * 3 + 1]; }); return [x / 5, y / 5]; }
+
+  /* ---------- 時間で L コマに そろえる ---------- */
+  function lerpArr(a, b, t) { const r = new Float32Array(a.length); for (let i = 0; i < a.length; i++) r[i] = a[i] + (b[i] - a[i]) * t; return r; }
+  function resample(frames, times, n) {
+    n = n || L;
+    if (!frames.length) return [];
+    const t0 = times[0], t1 = times[times.length - 1], out = [];
+    const near = (key, i, t) => {   // i の まわりで その手が うつっている コマを さがす
+      let lo = i, hi = i + 1;
+      while (lo >= 0 && !frames[lo][key]) lo--;
+      while (hi < frames.length && !frames[hi][key]) hi++;
+      const A = lo >= 0 ? frames[lo][key] : null, Bv = hi < frames.length ? frames[hi][key] : null;
+      if (A && Bv) { const tt = (t - times[lo]) / Math.max(1, times[hi] - times[lo]); return lerpArr(A, Bv, Math.min(1, Math.max(0, tt))); }
+      const ok = A ? Math.abs(t - times[lo]) < 260 : Bv ? Math.abs(times[hi] - t) < 260 : false;
+      return ok ? new Float32Array(A || Bv) : null;
+    };
+    let j = 0;
+    for (let k = 0; k < n; k++) {
+      const t = t0 + (t1 - t0) * (n === 1 ? 0 : k / (n - 1));
+      while (j < frames.length - 2 && times[j + 1] < t) j++;
+      const tt = Math.min(1, Math.max(0, (t - times[j]) / Math.max(1, (times[j + 1] || times[j]) - times[j])));
+      const fa = frames[j], fb = frames[Math.min(j + 1, frames.length - 1)];
+      const f = fa.f.map((v, i) => v + (fb.f[i] - v) * tt);
+      const pick = key => (fa[key] && fb[key]) ? lerpArr(fa[key], fb[key], tt) : near(key, j, t);
+      out.push({ d: pick('d'), n: pick('n'), f });
+    }
+    return out;
+  }
+
+  /* ---------- 片手だけの サインは、どちらの手でも 右手として あつかう ---------- */
+  function normalizeSeq(seq) {
+    let d = 0, n = 0;
+    seq.forEach(fr => { if (fr.d) d++; if (fr.n) n++; });
+    return (d < seq.length * 0.3 && n > d) ? mirrorSeq(seq) : seq;
+  }
+
+  /* ---------- 見本データ ⇔ 文字列 ---------- */
+  function b64enc(u8) { if (typeof btoa === 'function') { let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); } return Buffer.from(u8).toString('base64'); }
+  function b64dec(s) { if (typeof atob === 'function') { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; } return new Uint8Array(Buffer.from(s, 'base64')); }
+  function encode(seq) {
+    let len = 2;
+    seq.forEach(fr => { len += 1 + 2 * (4 + (fr.d ? NH : 0) + (fr.n ? NH : 0)); });
+    const buf = new ArrayBuffer(len), dv = new DataView(buf);
+    let o = 0;
+    dv.setUint8(o++, FMT); dv.setUint8(o++, seq.length);
+    const put = v => { dv.setInt16(o, Math.max(-32767, Math.min(32767, Math.round(v * 1000))), true); o += 2; };
+    seq.forEach(fr => {
+      dv.setUint8(o++, (fr.d ? 1 : 0) | (fr.n ? 2 : 0));
+      fr.f.forEach(put);
+      if (fr.d) fr.d.forEach(put);
+      if (fr.n) fr.n.forEach(put);
+    });
+    return b64enc(new Uint8Array(buf));
+  }
+  function decode(str) {
+    const u8 = b64dec(str), dv = new DataView(u8.buffer);
+    let o = 0;
+    const ver = dv.getUint8(o++); if (ver !== FMT) throw new Error('format');
+    const n = dv.getUint8(o++), out = [];
+    const get = () => { const v = dv.getInt16(o, true) / 1000; o += 2; return v; };
+    for (let k = 0; k < n; k++) {
+      const fl = dv.getUint8(o++);
+      const f = [get(), get(), get(), get()];
+      let d = null, m = null;
+      if (fl & 1) { d = new Float32Array(NH); for (let i = 0; i < NH; i++) d[i] = get(); }
+      if (fl & 2) { m = new Float32Array(NH); for (let i = 0; i < NH; i++) m[i] = get(); }
+      out.push({ d, n: m, f });
+    }
+    return out;
+  }
+
+  /* ---------- 特徴（手の形・向き・位置・動き） ---------- */
+  const CH = [[0, 1, 2], [1, 2, 3], [2, 3, 4], [0, 5, 6], [5, 6, 7], [6, 7, 8], [0, 9, 10], [9, 10, 11], [10, 11, 12], [0, 13, 14], [13, 14, 15], [14, 15, 16], [0, 17, 18], [17, 18, 19], [18, 19, 20]];
+  const SP = [[5, 6, 9, 10], [9, 10, 13, 14], [13, 14, 17, 18], [2, 3, 5, 6]];
+  const P = (a, k) => [a[k * 3], a[k * 3 + 1], a[k * 3 + 2]];
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const angle = (u, v) => { const a = nrm(u), b = nrm(v); return Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))) / Math.PI; };
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  // 1つの 手 → { s: 形[21], o: 向き[6], c: 位置[2], r: 顔からの 位置[2] }
+  function handFeat(a, f, isN) {
+    if (!a) return null;
+    const s = [];
+    CH.forEach(c => s.push(angle(sub(P(a, c[1]), P(a, c[0])), sub(P(a, c[2]), P(a, c[1])))));
+    SP.forEach(c => s.push(angle(sub(P(a, c[1]), P(a, c[0])), sub(P(a, c[3]), P(a, c[2])))));
+    const pl = Math.hypot.apply(null, sub(P(a, 9), P(a, 0))) || 1;
+    s.push(Math.min(2, Math.hypot.apply(null, sub(P(a, 4), P(a, 8))) / pl) / 2);
+    s.push(Math.min(2, Math.hypot.apply(null, sub(P(a, 4), P(a, 12))) / pl) / 2);
+    let nv = nrm(cross(sub(P(a, 5), P(a, 0)), sub(P(a, 17), P(a, 0))));
+    if (isN) nv = [-nv[0], -nv[1], -nv[2]];   // 左手は 外積の 向きが 反対になるので そろえる
+    const dv = nrm(sub(P(a, 9), P(a, 0)));
+    const c = palm(a);
+    return { s, o: nv.concat(dv), c, r: [c[0] - f[0], c[1] - f[1]] };
+  }
+  function features(seq) {
+    const out = seq.map(fr => ({ D: handFeat(fr.d, fr.f, false), N: handFeat(fr.n, fr.f, true), v: null }));
+    for (let k = 0; k < out.length; k++) {     // うごき（となりの コマとの 差）
+      const a = out[Math.max(0, k - 1)].D, b = out[Math.min(out.length - 1, k + 1)].D;
+      out[k].v = a && b ? [(b.c[0] - a.c[0]) * 3, (b.c[1] - a.c[1]) * 3] : null;
+    }
+    return out;
+  }
+
+  /* ---------- コマどうしの ちがい ---------- */
+  const W = { shape: 4, ori: 1, pos: 1.5, mov: 1, nHand: 0.7, missN: 1.2, missD: 2.2 };
+  function handDist(a, b) {
+    let s = 0; for (let i = 0; i < a.s.length; i++) s += Math.abs(a.s[i] - b.s[i]); s /= a.s.length;
+    let o = 0; for (let i = 0; i < 6; i++) o += (a.o[i] - b.o[i]) * (a.o[i] - b.o[i]); o = Math.sqrt(o) / 2.83;
+    const p = (Math.hypot(a.c[0] - b.c[0], a.c[1] - b.c[1]) + Math.hypot(a.r[0] - b.r[0], a.r[1] - b.r[1])) / 2;
+    return W.shape * s + W.ori * o + W.pos * p;
+  }
+  function frameDist(a, b) {
+    let d = 0;
+    if (a.D && b.D) d += handDist(a.D, b.D); else if (a.D || b.D) d += W.missD;
+    if (a.N && b.N) d += W.nHand * handDist(a.N, b.N); else if (a.N || b.N) d += W.missN;
+    if (a.v && b.v) d += W.mov * Math.hypot(a.v[0] - b.v[0], a.v[1] - b.v[1]);
+    return d;
+  }
+  // DTW（はやさの ちがいを 吸収して くらべる）
+  function dtw(A, Bq) {
+    const n = A.length, m = Bq.length, band = Math.max(3, Math.ceil(Math.max(n, m) * 0.3));
+    const INF = 1e9; let prev = new Float64Array(m + 1).fill(INF), cur = new Float64Array(m + 1);
+    prev[0] = 0;
+    for (let i = 1; i <= n; i++) {
+      cur.fill(INF);
+      const lo = Math.max(1, Math.round(i * m / n) - band), hi = Math.min(m, Math.round(i * m / n) + band);
+      for (let j = lo; j <= hi; j++) cur[j] = frameDist(A[i - 1], Bq[j - 1]) + Math.min(prev[j], cur[j - 1], prev[j - 1]);
+      const t = prev; prev = cur; cur = t;
+    }
+    return prev[m] / (n + m);
+  }
+
+  /* ---------- 見本あつめ と 判定 ---------- */
+  // words: [{id, samples:[文字列…]}]  → 内部用の 準備データ
+  function prepare(words) {
+    const items = [];
+    words.forEach(w => (w.samples || []).forEach((smp, i) => {
+      try { items.push({ id: w.id, i, f: features(normalizeSeq(decode(smp))) }); } catch (e) { /* こわれた 見本は とばす */ }
+    }));
+    // 同じ ことばの 見本どうしの ちがい（その セットの「ふつうの ばらつき」）
+    const intra = [];
+    const byId = {};
+    items.forEach(it => (byId[it.id] = byId[it.id] || []).push(it));
+    Object.keys(byId).forEach(id => { const g = byId[id]; for (let a = 0; a < g.length; a++) for (let b = a + 1; b < g.length; b++) intra.push(dtw(g[a].f, g[b].f)); });
+    intra.sort((a, b) => a - b);
+    const med = intra.length ? intra[Math.floor(intra.length / 2)] : null;
+    return { items, med, count: Object.keys(byId).length };
+  }
+  // 入力（L コマに そろえた からだ基準の 列）→ 近い じゅんの ランキング
+  function rank(prep, seq, opt) {
+    opt = opt || {};
+    const q = features(normalizeSeq(seq));
+    const qm = opt.mirror ? features(normalizeSeq(mirrorSeq(seq))) : null;
+    const best = {};
+    prep.items.forEach(it => {
+      if (opt.only && !opt.only[it.id]) return;
+      let d = dtw(q, it.f);
+      if (qm) d = Math.min(d, dtw(qm, it.f) + 0.05);
+      if (best[it.id] == null || d < best[it.id]) best[it.id] = d;
+    });
+    return Object.keys(best).map(id => ({ id, d: best[id] })).sort((a, b) => a.d - b.d);
+  }
+  // 感度（1 きびしい … 3 ゆるい）から しきい値を きめる
+  function thresholds(prep, sens) {
+    const base = prep.med != null ? Math.min(1.5, Math.max(0.45, prep.med * 1.9)) : 0.9;
+    const k = [0.75, 1, 1.3][Math.max(0, Math.min(2, (sens || 2) - 1))];
+    return { ok: base * k, maybe: base * k * 1.55, gap: 0.06 };
+  }
+  // 判定：{ kind:'ok'|'maybe'|'none', top:[…] }
+  function judge(ranked, th) {
+    if (!ranked.length) return { kind: 'none', top: [] };
+    const a = ranked[0], b = ranked[1];
+    if (a.d <= th.ok && (!b || b.d - a.d >= th.gap * Math.max(1, a.d))) return { kind: 'ok', top: ranked.slice(0, 3) };
+    if (a.d <= th.maybe) return { kind: 'maybe', top: ranked.slice(0, 3).filter(r => r.d <= th.maybe * 1.15) };
+    return { kind: 'none', top: ranked.slice(0, 3) };
+  }
+
+  /* ---------- 区切り（手を あげて サイン → 手を おろす or 止める） ---------- */
+  function Segmenter(opt) {
+    this.o = Object.assign({ restY: 1.7, holdMs: 700, useHold: true, minMs: 280, maxMs: 4200, gapMs: 260, still: 0.07 }, opt || {});
+    this.reset();
+  }
+  Segmenter.prototype.reset = function () { this.state = 'idle'; this.buf = []; this.times = []; this.pre = []; this.on = 0; this.gap = null; this.holdRef = null; this.holdT = null; this.start = 0; };
+  Segmenter.prototype.active = function (fr) {
+    if (!fr) return false;
+    const y = this.o.restY, a = palm(fr.d), b = palm(fr.n);
+    return !!((a && a[1] < y) || (b && b[1] < y));
+  };
+  // 1コマ ずつ 入れる。区切れたら { frames, times, why } を かえす
+  Segmenter.prototype.push = function (fr, t) {
+    const act = this.active(fr);
+    if (this.state === 'idle') {
+      this.pre.push({ fr, t }); if (this.pre.length > 3) this.pre.shift();
+      this.on = act ? this.on + 1 : 0;
+      if (this.on >= 3) {
+        this.state = 'sign'; this.start = t; this.gap = null; this.holdRef = null;
+        this.buf = []; this.times = [];
+        this.pre.forEach(p => { if (p.fr) { this.buf.push(p.fr); this.times.push(p.t); } });
+        if (!this.buf.length && fr) { this.buf.push(fr); this.times.push(t); }
+      }
+      return null;
+    }
+    if (this.state === 'wait') {   // 止めて きめた あと：手を おろすか 大きく うごかすまで まつ
+      if (!act) { if (this.gap == null) this.gap = t; if (t - this.gap > this.o.gapMs) { this.reset(); } return null; }
+      this.gap = null;
+      const p = palm(fr.d) || palm(fr.n);
+      if (p && this.holdRef && Math.hypot(p[0] - this.holdRef[0], p[1] - this.holdRef[1]) > 0.45) { this.reset(); this.on = 3; this.pre = [{ fr, t }]; return this.push(fr, t); }
+      return null;
+    }
+    // sign
+    if (!act) {
+      if (this.gap == null) this.gap = t;
+      if (t - this.gap > this.o.gapMs) return this.finish('drop', 'idle');
+      return null;
+    }
+    this.gap = null;
+    this.buf.push(fr); this.times.push(t);
+    const p = palm(fr.d) || palm(fr.n);
+    if (this.o.useHold && p) {
+      if (!this.holdRef || Math.hypot(p[0] - this.holdRef[0], p[1] - this.holdRef[1]) > this.o.still) { this.holdRef = p; this.holdT = t; }
+      else if (t - this.holdT >= this.o.holdMs && t - this.start >= this.o.minMs + this.o.holdMs * 0.6) return this.finish('hold', 'wait');
+    }
+    if (t - this.start > this.o.maxMs) return this.finish('max', 'wait');
+    return null;
+  };
+  Segmenter.prototype.finish = function (why, next) {
+    const frames = this.buf, times = this.times, ref = this.holdRef;
+    this.reset();
+    if (next === 'wait') { this.state = 'wait'; this.holdRef = ref; }
+    if (!frames.length || times[times.length - 1] - times[0] < this.o.minMs) return null;
+    return { frames, times, why };
+  };
+  // いま どれくらい 止まっているか（0〜1、きめる ゲージ用）
+  Segmenter.prototype.holdProgress = function (t) {
+    if (this.state !== 'sign' || !this.o.useHold || this.holdT == null) return 0;
+    return Math.max(0, Math.min(1, (t - this.holdT) / this.o.holdMs));
+  };
+
+  const api = { L, frameFrom, mirrorFrame, mirrorSeq, resample, normalizeSeq, encode, decode, features, frameDist, dtw, prepare, rank, thresholds, judge, Segmenter, palm };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SignEngine = api;
+})(typeof window !== 'undefined' ? window : this);
+
+(function () {
+  'use strict';
+  const E = window.SignEngine;
+
+  /* ============================================================
+     小さな道具
+     ============================================================ */
+  const $ = s => document.querySelector(s);
+  const uid = () => Math.random().toString(36).slice(2, 9);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  function h(tag, props) {
+    const el = document.createElement(tag);
+    if (props) Object.keys(props).forEach(k => {
+      const v = props[k]; if (v === null || v === undefined || v === false) return;
+      if (k === 'class') el.className = v; else if (k === 'html') el.innerHTML = v; else if (k === 'style') el.style.cssText = v; else if (k.slice(0, 2) === 'on') el.addEventListener(k.slice(2), v); else el.setAttribute(k, v === true ? '' : v);
+    });
+    (function add(list) { list.forEach(c => { if (c === null || c === undefined || c === false) return; if (Array.isArray(c)) add(c); else el.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(String(c)) : c); }); })(Array.prototype.slice.call(arguments, 2));
+    return el;
+  }
+  let toastT = null;
+  function toast(msg, ms) { const old = $('.toast'); if (old) old.remove(); const t = h('div', { class: 'toast' }, msg); document.body.appendChild(t); clearTimeout(toastT); toastT = setTimeout(() => t.remove(), ms || 2200); }
+  const CAT = {}; VOCAB_CATS.forEach(c => CAT[c.id] = c);
+  const catColor = id => (CAT[id] || { c: '#868E96' }).c;
+
+  /* ============================================================
+     せってい（この iPad に 保存）
+     ============================================================ */
+  const ST_KEY = 'mieel-sign-st';
+  const DEF = { lefty: false, say: 'p', rate: 0.95, chime: true, urgentRepeat: true, confirm: 'auto', sens: 2, mirror: true, hold: true, holdMs: 700, restY: 1.7, showVideo: true, learn: true, debug: false, activeSet: '' };
+  let st = Object.assign({}, DEF);
+  try { Object.assign(st, JSON.parse(localStorage.getItem(ST_KEY) || '{}')); } catch (e) { /* 無視 */ }
+  function saveSt() { try { localStorage.setItem(ST_KEY, JSON.stringify(st)); } catch (e) { /* 無視 */ } }
+
+  /* ============================================================
+     音（ピンポン）と 読み上げ
+     ============================================================ */
+  let ac = null;
+  function audio() { try { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); return ac; } catch (e) { return null; } }
+  function tone(f, t0, dur, vol) { const a = audio(); if (!a) return; const o = a.createOscillator(), g = a.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0, a.currentTime + t0); g.gain.linearRampToValueAtTime(vol || 0.25, a.currentTime + t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + t0 + dur); o.connect(g).connect(a.destination); o.start(a.currentTime + t0); o.stop(a.currentTime + t0 + dur + 0.05); }
+  function chime(urgent) { if (urgent) { tone(988, 0, 0.25, 0.3); tone(784, 0.22, 0.25, 0.3); tone(988, 0.44, 0.25, 0.3); tone(784, 0.66, 0.4, 0.3); } else { tone(880, 0, 0.35); tone(698, 0.28, 0.5); } }
+  function beep() { tone(660, 0, 0.12, 0.18); }
+  const canSpeak = 'speechSynthesis' in window;
+  let jaVoice = null;
+  function loadVoice() { if (!canSpeak) return; const v = speechSynthesis.getVoices().filter(x => /^ja/i.test(x.lang)); jaVoice = v.find(x => /Kyoko|O-ren|Otoya|Hattori/i.test(x.name)) || v[0] || null; }
+  function speak(t, rate) { if (!canSpeak || !t) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(jaSay(t)); u.lang = 'ja-JP'; u.rate = rate || st.rate; u.pitch = 1.05; u.volume = 1; if (jaVoice) u.voice = jaVoice; speechSynthesis.speak(u); } catch (e) { /* 無視 */ } }
+  const sayText = w => st.say === 'w' ? (w.s || w.w) : (w.p || w.s || w.w);
+  function announce(w) {
+    if (st.say === 'none') { if (st.chime) chime(w.u); return; }
+    if (st.chime) { chime(w.u); setTimeout(() => speak(sayText(w)), w.u ? 900 : 620); } else speak(sayText(w));
+  }
+
+  /* ============================================================
+     ほぞん（IndexedDB：セットは 大きいので こちら）
+     ============================================================ */
+  const DB = {
+    db: null,
+    open() { if (this.db) return Promise.resolve(this.db); return new Promise((res, rej) => { const r = indexedDB.open('mieel-sign', 1); r.onupgradeneeded = () => r.result.createObjectStore('sets', { keyPath: 'id' }); r.onsuccess = () => { this.db = r.result; res(this.db); }; r.onerror = () => rej(r.error); }); },
+    async all() { const db = await this.open(); return new Promise((res, rej) => { const q = db.transaction('sets').objectStore('sets').getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => rej(q.error); }); },
+    async put(s) { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('sets', 'readwrite'); tx.objectStore('sets').put(s); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); },
+    async del(id) { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('sets', 'readwrite'); tx.objectStore('sets').delete(id); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); }
+  };
+
+  /* ============================================================
+     サインセット
+     ============================================================ */
+  let SETS = [];          // [{ id, name, builtin, file, words, loaded }]
+  let prepCache = { id: null, ver: -1, prep: null };
+  let setVer = 0;
+  const wordFromVocab = v => ({ id: v.id, cat: v.cat, e: v.e, w: v.w, p: v.p, s: v.s, u: v.u, memo: '', off: false, samples: [] });
+  const active = () => SETS.find(s => s.id === st.activeSet) || SETS[0] || null;
+  // null を 文字として 入れない append
+  const put = (el, ...kids) => { kids.forEach(k => { if (k != null && k !== false) el.append(k); }); return el; };
+  const recCount = s => s ? s.words.filter(w => w.samples && w.samples.length && !w.off).length : 0;
+  async function loadSets() {
+    const user = await DB.all().catch(() => []);
+    let builtin = [];
+    try { const r = await fetch('sets/index.json', { cache: 'no-cache' }); if (r.ok) builtin = (await r.json()).sets || []; } catch (e) { /* オフライン */ }
+    SETS = builtin.map(b => ({ id: 'builtin:' + b.file, name: b.name, desc: b.desc || '', builtin: true, file: b.file, words: [], loaded: false })).concat(user.sort((a, b) => (a.made || 0) - (b.made || 0)));
+    if (!SETS.some(s => !s.builtin)) {   // はじめての とき：ぜんぶの ことばが 入った 自分用セットを 作る
+      const s = { id: 'u-' + uid(), name: 'わたしの しゅわ', made: Date.now(), words: VOCAB.map(wordFromVocab), loaded: true };
+      await DB.put(s).catch(() => {}); SETS.push(s);
+    }
+    if (!SETS.some(s => s.id === st.activeSet)) st.activeSet = SETS[0].id;
+    await ensureLoaded(active());
+    // 先生が えらんで いない ときは、とうろくが いちばん 多い セットを つかう
+    if (!localStorage.getItem(ST_KEY + '-chosen')) {
+      for (const s of SETS) if (s.builtin) await ensureLoaded(s);
+      const best = SETS.slice().sort((a, b) => recCount(b) - recCount(a))[0];
+      if (best && recCount(best) > recCount(active())) st.activeSet = best.id;
+    }
+    saveSt();
+  }
+  async function ensureLoaded(s) {
+    if (!s || s.loaded) return s;
+    try { const r = await fetch('sets/' + s.file, { cache: 'no-cache' }); if (r.ok) { const j = await r.json(); s.words = (j.words || []); s.desc = s.desc || j.desc || ''; } } catch (e) { /* オフライン */ }
+    s.loaded = true; return s;
+  }
+  async function saveSet(s) { if (!s || s.builtin) return; s.updated = Date.now(); setVer++; await DB.put(JSON.parse(JSON.stringify(s))).catch(e => toast('ほぞん できませんでした')); }
+  function prepFor(s) {
+    if (prepCache.id === s.id && prepCache.ver === setVer) return prepCache.prep;
+    const words = s.words.filter(w => !w.off && w.samples && w.samples.length);
+    prepCache = { id: s.id, ver: setVer, prep: E.prepare(words) };
+    return prepCache.prep;
+  }
+  function wordById(s, id) { return s.words.find(w => w.id === id); }
+  function exportSet(s) {
+    const data = { format: 'mieel-sign-set', v: 1, name: s.name, made: new Date().toISOString().slice(0, 10), words: s.words.map(w => ({ id: w.id, cat: w.cat, e: w.e, w: w.w, p: w.p, s: w.s, u: !!w.u, memo: w.memo || '', off: !!w.off, samples: w.samples || [] })) };
+    const json = JSON.stringify(data);
+    const name = 'サインセット_' + s.name.replace(/[\\/:*?"<>|\s]/g, '') + '.json';
+    const file = typeof File === 'function' ? new File([json], name, { type: 'application/json' }) : null;
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: s.name }).catch(() => {}); return; }
+    const a = h('a', { href: URL.createObjectURL(new Blob([json], { type: 'application/json' })), download: name }); document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  async function importFile(file) {
+    try {
+      const j = JSON.parse(await file.text());
+      if (j.format !== 'mieel-sign-set' || !Array.isArray(j.words)) throw new Error('format');
+      let name = j.name || 'よみこんだ セット'; while (SETS.some(s => s.name === name)) name += '（2）';
+      const s = { id: 'u-' + uid(), name, made: Date.now(), loaded: true, words: j.words.map(w => ({ id: String(w.id || 'my-' + uid()), cat: w.cat || 'aisatsu', e: w.e || '🤟', w: w.w || '？', p: w.p || w.w, s: w.s || '', u: !!w.u, memo: w.memo || '', off: !!w.off, samples: Array.isArray(w.samples) ? w.samples.filter(x => typeof x === 'string') : [] })) };
+      await DB.put(s); SETS.push(s); st.activeSet = s.id; saveSt(); setVer++;
+      toast('「' + name + '」を よみこみました（サイン ' + recCount(s) + 'こ）', 3000);
+      renderTeacher();
+    } catch (e) { toast('よみこめませんでした（サインセットの ファイルを えらんでください）', 3500); }
+  }
+  // 見本を 足す（10こ まで。はじめの 3こは のこし、あとから 足した ものを 入れかえる）
+  function addSample(w, seq) { w.samples = w.samples || []; w.samples.push(E.encode(seq)); if (w.samples.length > 10) w.samples.splice(3, 1); }
+
+  /* ============================================================
+     きろく
+     ============================================================ */
+  const LOG_KEY = 'mieel-sign-log';
+  function logPush(w, k) { try { const a = JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); a.push({ t: Date.now(), id: w.id, w: w.w, k }); while (a.length > 3000) a.shift(); localStorage.setItem(LOG_KEY, JSON.stringify(a)); } catch (e) { /* 無視 */ } }
+  function logAll() { try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch (e) { return []; } }
+
+  /* ============================================================
+     カメラ と MediaPipe
+     ============================================================ */
+  const video = $('#video');
+  const V = { ready: false, loading: null, hand: null, pose: null, stream: null, running: false, onFrame: null, lastVT: -1, lastT: 0, lastPose: null, k: 0, fps: 0, slow: false, err: '' };
+  function loadVision() {
+    if (V.ready) return Promise.resolve();
+    if (V.loading) return V.loading;
+    V.loading = (async () => {
+      const mp = await import(new URL('vendor/vision_bundle.js', location.href).href);
+      const fs = await mp.FilesetResolver.forVisionTasks(new URL('vendor/wasm', location.href).href);
+      const mk = async delegate => {
+        V.hand = await mp.HandLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: new URL('vendor/models/hand_landmarker.task', location.href).href, delegate }, runningMode: 'VIDEO', numHands: 2, minHandDetectionConfidence: 0.5, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+        V.pose = await mp.PoseLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: new URL('vendor/models/pose_landmarker_lite.task', location.href).href, delegate }, runningMode: 'VIDEO', numPoses: 1 });
+      };
+      try { await mk('GPU'); V.delegate = 'GPU'; } catch (e) { console.warn('GPU だめ → CPU', e); await mk('CPU'); V.delegate = 'CPU'; }
+      V.ready = true;
+    })();
+    V.loading.catch(e => { V.loading = null; V.err = String(e && e.message || e); });
+    return V.loading;
+  }
+  async function startCam() {
+    if (V.stream) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('nocam');
+    V.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } } });
+    video.srcObject = V.stream;
+    await video.play().catch(() => {});
+  }
+  function stopCam() { V.running = false; V.onFrame = null; if (V.stream) { V.stream.getTracks().forEach(t => t.stop()); V.stream = null; } video.srcObject = null; releaseWake(); }
+  function runLoop(onFrame) {
+    V.onFrame = onFrame;
+    if (V.running) return;
+    V.running = true; V.lastVT = -1;
+    const step = () => {
+      if (!V.running) return;
+      requestAnimationFrame(step);
+      if (!V.ready || video.readyState < 2 || !video.videoWidth) return;
+      if (video.currentTime === V.lastVT) return;
+      V.lastVT = video.currentTime;
+      let t = performance.now(); if (t <= V.lastT) t = V.lastT + 1;
+      const dt = t - V.lastT; V.lastT = t;
+      if (dt < 500) { V.fps = V.fps * 0.9 + (1000 / dt) * 0.1; V.slow = V.fps < 18; }
+      let hr, pose;
+      try {
+        hr = V.hand.detectForVideo(video, t);
+        V.k++;
+        if (!V.slow || V.k % 2 === 0 || !V.lastPose) V.lastPose = V.pose.detectForVideo(video, t);
+        pose = V.lastPose && V.lastPose.landmarks && V.lastPose.landmarks[0];
+      } catch (e) { console.warn(e); return; }
+      const fr = E.frameFrom(hr.landmarks, hr.handedness, pose, video.videoWidth, video.videoHeight, st.lefty);
+      if (V.onFrame) V.onFrame({ fr, t, hands: hr.landmarks || [], pose });
+    };
+    requestAnimationFrame(step);
+  }
+  let wake = null;
+  async function keepAwake() { try { if ('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch (e) { /* 無視 */ } }
+  function releaseWake() { try { if (wake) wake.release(); } catch (e) { /* 無視 */ } wake = null; }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && V.running && cur === 'talk') keepAwake(); });
+
+  /* ============================================================
+     かく（カメラの 絵・ほね・見本の アニメ）
+     ============================================================ */
+  const HC = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [0, 17], [17, 18], [18, 19], [19, 20]];
+  const PC = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24]];
+  function fitCanvas(cv) {
+    const r = cv.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1);
+    const w = Math.max(1, Math.round(r.width * d)), hh = Math.max(1, Math.round(r.height * d));
+    if (cv.width !== w || cv.height !== hh) { cv.width = w; cv.height = hh; }
+    return { w, h: hh, d };
+  }
+  // カメラの 絵（かがみ うつし・ぜんぶ 入るように）＋ ほね ＋ おろす せん
+  function drawCam(cv, info, seg) {
+    const { w, h: H, d } = fitCanvas(cv), g = cv.getContext('2d');
+    const VW = video.videoWidth || 16, VH = video.videoHeight || 9;
+    const sc = Math.min(w / VW, H / VH), ox = (w - VW * sc) / 2, oy = (H - VH * sc) / 2;
+    const P = (x, y) => [w - (ox + x * VW * sc), oy + y * VH * sc];
+    g.fillStyle = '#0B1A2E'; g.fillRect(0, 0, w, H);
+    if (st.showVideo && video.readyState >= 2) { g.save(); g.translate(w, 0); g.scale(-1, 1); g.globalAlpha = 0.92; g.drawImage(video, ox, oy, VW * sc, VH * sc); g.restore(); }
+    if (!info) return;
+    const pose = info.pose;
+    if (pose) {
+      g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 5 * d; g.lineCap = 'round';
+      PC.forEach(([a, b]) => { if ((pose[a].visibility || 0) < 0.4 || (pose[b].visibility || 0) < 0.4) return; const p = P(pose[a].x, pose[a].y), q = P(pose[b].x, pose[b].y); g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke(); });
+      // おろす せん（ここより 下に 手を おくと「まっている」）
+      const Ls = pose[11], Rs = pose[12];
+      if (Ls && Rs && (Ls.visibility || 1) > 0.4) {
+        const lx = Ls.x * VW, ly = Ls.y * VH, rx = Rs.x * VW, ry = Rs.y * VH, s = Math.hypot(lx - rx, ly - ry);
+        const y = ((ly + ry) / 2 + st.restY * s) / VH;
+        if (y < 1.05) {
+          const p = P(0, y), q = P(1, y);
+          g.setLineDash([14 * d, 10 * d]); g.strokeStyle = 'rgba(255,212,59,.85)'; g.lineWidth = 3 * d; g.beginPath(); g.moveTo(q[0], p[1]); g.lineTo(p[0], p[1]); g.stroke(); g.setLineDash([]);
+          g.fillStyle = 'rgba(255,212,59,.95)'; g.font = `700 ${14 * d}px sans-serif`; g.fillText('↓ ここより した ＝ まつ', Math.min(p[0], q[0]) + 10 * d, p[1] - 8 * d);
+        }
+      }
+    }
+    const hold = seg ? seg.holdProgress(info.t) : 0;
+    info.hands.forEach((lm, i) => {
+      g.strokeStyle = i === 0 ? '#4DABF7' : '#FFA94D'; g.lineWidth = 4 * d;
+      HC.forEach(([a, b]) => { const p = P(lm[a].x, lm[a].y), q = P(lm[b].x, lm[b].y); g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke(); });
+      g.fillStyle = '#fff'; lm.forEach(pt => { const p = P(pt.x, pt.y); g.beginPath(); g.arc(p[0], p[1], 3.2 * d, 0, 7); g.fill(); });
+      if (hold > 0.05) {
+        let cx = 0, cy = 0; [0, 5, 9, 13, 17].forEach(k => { const p = P(lm[k].x, lm[k].y); cx += p[0] / 5; cy += p[1] / 5; });
+        g.strokeStyle = 'rgba(64,192,87,.95)'; g.lineWidth = 8 * d; g.beginPath(); g.arc(cx, cy, 46 * d, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * hold); g.stroke();
+      }
+    });
+  }
+  // からだ基準の 1コマを かく（見本の アニメ・手前から 見た 向き）
+  function drawBody(g, fr, w, H, opt) {
+    opt = opt || {};
+    // view：見本ぜんたいが 入る はんい（x0,x1,y0,y1 からだ単位）。なければ むね から 上
+    const vw = opt.view || { x0: -1.55, x1: 1.55, y0: -1.1, y1: 1.5 };
+    const sc = Math.min(w / (vw.x1 - vw.x0), H / (vw.y1 - vw.y0)), cx = w / 2 - (vw.x0 + vw.x1) / 2 * sc, cy = H / 2 - (vw.y0 + vw.y1) / 2 * sc;
+    const P = (x, y) => [cx + x * sc, cy + y * sc];
+    g.fillStyle = opt.bg || '#0B1A2E'; g.fillRect(0, 0, w, H);
+    const lw = Math.max(2, sc * 0.05);
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    // からだ
+    g.fillStyle = 'rgba(255,255,255,.12)'; g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = lw;
+    const n = P(fr.f[0], fr.f[1]);
+    g.beginPath(); g.arc(n[0], n[1] + sc * 0.04, sc * 0.3, 0, 7); g.fill(); g.stroke();
+    const sl = P(-0.5, 0), sr = P(0.5, 0);
+    g.beginPath(); g.moveTo(sl[0], sl[1]); g.lineTo(sr[0], sr[1]); g.lineTo(P(0.42, 1.6)[0], P(0.42, 1.6)[1]); g.lineTo(P(-0.42, 1.6)[0], P(-0.42, 1.6)[1]); g.closePath(); g.fill(); g.stroke();
+    const arm = (a, sx, col) => {
+      if (!a) return;
+      const s = P(sx, 0.05), wr = P(a[0], a[1]);
+      const el = P(sx * 1.25 + (a[0] - sx) * 0.25, (0.05 + a[1]) / 2 + 0.35);
+      g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = lw * 2.4;
+      g.beginPath(); g.moveTo(s[0], s[1]); g.quadraticCurveTo(el[0], el[1], wr[0], wr[1]); g.stroke();
+      g.strokeStyle = col; g.lineWidth = lw * 1.1;
+      HC.forEach(([i, j]) => { const p = P(a[i * 3], a[i * 3 + 1]), q = P(a[j * 3], a[j * 3 + 1]); g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke(); });
+      g.fillStyle = '#fff'; for (let k = 0; k < 21; k++) { const p = P(a[k * 3], a[k * 3 + 1]); g.beginPath(); g.arc(p[0], p[1], lw * 0.8, 0, 7); g.fill(); }
+    };
+    // サインする 人の 右手（d）は 見ている 人の 左
+    arm(fr.n, 0.5, '#FFA94D');
+    arm(fr.d, -0.5, '#4DABF7');
+  }
+  // 見本を ループで うごかす（canvas に つける。とめる 関数を かえす）
+  function animateSample(cv, sampleStr, opt) {
+    let seq; try { seq = E.decode(sampleStr); } catch (e) { return () => {}; }
+    let alive = true, t0 = performance.now();
+    // 手が ぜんぶ 入るように はんいを きめる（あたまと かたは かならず 入れる）
+    const vw = { x0: -0.9, x1: 0.9, y0: -1.0, y1: 0.7 };
+    seq.forEach(fr => [fr.d, fr.n].forEach(a => { if (!a) return; for (let k = 0; k < 21; k++) { vw.x0 = Math.min(vw.x0, a[k * 3] - 0.15); vw.x1 = Math.max(vw.x1, a[k * 3] + 0.15); vw.y0 = Math.min(vw.y0, a[k * 3 + 1] - 0.15); vw.y1 = Math.max(vw.y1, a[k * 3 + 1] + 0.15); } }));
+    const half = Math.max(-vw.x0, vw.x1); vw.x0 = -half; vw.x1 = half;
+    const dur = (opt && opt.dur) || 1500, pause = 700;
+    const lerpF = (a, b, k) => ({ d: a.d && b.d ? a.d.map((v, i) => v + (b.d[i] - v) * k) : (a.d || b.d), n: a.n && b.n ? a.n.map((v, i) => v + (b.n[i] - v) * k) : (k < 0.5 ? a.n : b.n), f: a.f.map((v, i) => v + (b.f[i] - v) * k) });
+    const step = () => {
+      if (!alive || !cv.isConnected) return;
+      const { w, h: H } = fitCanvas(cv), g = cv.getContext('2d');
+      const e = (performance.now() - t0) % (dur + pause), p = Math.min(1, e / dur) * (seq.length - 1);
+      const i = Math.floor(p), k = p - i;
+      drawBody(g, lerpF(seq[i], seq[Math.min(seq.length - 1, i + 1)], k), w, H, { view: vw });
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    return () => { alive = false; };
+  }
+
+  /* ============================================================
+     画面
+     ============================================================ */
+  const main = $('#main');
+  let cur = 'home', leave = null;
+  function go(name, arg) {
+    if (leave) { try { leave(); } catch (e) { /* 無視 */ } leave = null; }
+    closeOverlay();
+    cur = name; main.innerHTML = '';
+    $('#homeBtn').hidden = name === 'home';
+    ({ home: renderHome, talk: renderTalk, studio: renderStudio, words: renderWords })[name](arg);
+  }
+  $('#homeBtn').addEventListener('click', () => go('home'));
+
+  /* ---------- ホーム ---------- */
+  function renderHome() {
+    const s = active(), n = recCount(s);
+    const scr = h('section', { class: 'screen home' },
+      h('h1', null, h('span', { class: 'emo' }, '🤟'), ' サインで つたえる'),
+      h('p', { class: 'lead' }, 'カメラの まえで サインを すると、ことばに なって 大きな こえで つたわります'),
+      h('div', { class: 'setchip' }, '📚 ', h('b', null, s ? s.name : '―'), h('span', { style: 'color:var(--sub);font-weight:500' }, '　サイン ' + n + ' こ')),
+      n ? null : h('div', { class: 'notice' }, '⚠️ まだ サインが とうろく されていません。', h('br'), '右上の ⚙️ を ながおし（1.5びょう）→「サインを とうろく」から はじめてください。'),
+      h('div', { class: 'modes' },
+        h('button', { class: 'mcard main', type: 'button', onclick: () => go('talk') }, h('span', { class: 'emo' }, '🗣️'), h('span', { class: 'nm' }, 'つたえる'), h('small', null, 'サインを すると こえで つたえます')),
+        h('button', { class: 'mcard', type: 'button', onclick: () => go('words') }, h('span', { class: 'emo' }, '📖'), h('span', { class: 'nm' }, 'サインを みる'), h('small', null, 'ことばを えらぶと サインの うごきが みられます'))
+      )
+    );
+    main.appendChild(scr);
+  }
+
+  // カメラを つかう 画面の 共通の はじめかた
+  function camBox() {
+    const cv = h('canvas');
+    const status = h('div', { class: 'status' }, 'じゅんび ちゅう…');
+    const fps = h('div', { class: 'fps' });
+    const loading = h('div', { class: 'loading' }, h('span', { class: 'emo' }, '📷'), 'カメラの じゅんび ちゅう…');
+    const box = h('div', { class: 'cam' }, cv, loading, status, fps);
+    return { box, cv, status, fps, loading };
+  }
+  async function bootCam(cb, onFrame) {
+    try {
+      cb.loading.lastChild.textContent = 'カメラと よみとりの じゅんび ちゅう…';
+      await Promise.all([startCam(), loadVision()]);
+      cb.loading.hidden = true;
+      runLoop(onFrame);
+      return true;
+    } catch (e) {
+      console.warn(e);
+      const msg = String(e && (e.name || e.message) || e);
+      cb.loading.innerHTML = '';
+      cb.loading.append(h('div', null, h('span', { class: 'emo' }, '🙈'),
+        /NotAllowed|Permission/i.test(msg) ? 'カメラを つかう ことが ゆるされていません。' : /nocam|NotFound/i.test(msg) ? 'カメラが みつかりません。' : 'じゅんびが できませんでした。',
+        h('br'), h('small', { style: 'font-size:15px;font-weight:500;opacity:.8' }, /NotAllowed|Permission/i.test(msg) ? 'iPad の「設定」→ Safari →「カメラ」を「許可」にして、もう いちど ひらいてください。' : (V.err || msg)),
+        h('br'), h('button', { class: 'pill', type: 'button', style: 'margin-top:14px', onclick: () => go(cur) }, '🔄 もう いちど')));
+      cb.status.hidden = true;
+      return false;
+    }
+  }
+  function statusOf(seg, info) {
+    if (!info.pose) return ['bad', '🙋 からだ（かた）が うつるように はなれてね'];
+    if (seg.state === 'sign') return ['sign', '👀 よみとり ちゅう…'];
+    if (seg.state === 'wait') return ['', '⬇️ てを おろしてね'];
+    return ['', '🤟 サインを どうぞ'];
+  }
+  let curSeg = null;
+  function newSeg() { curSeg = new E.Segmenter({ restY: st.restY, useHold: st.hold, holdMs: st.holdMs }); return curSeg; }
+  function syncSeg() { if (curSeg) Object.assign(curSeg.o, { restY: st.restY, useHold: st.hold, holdMs: st.holdMs }); }
+
+  /* ---------- つたえる ---------- */
+  function renderTalk() {
+    const s = active();
+    const cb = camBox();
+    const result = h('div', { class: 'result' });
+    const words = h('div', { class: 'words' });
+    const strip = h('div', { class: 'strip' }, words,
+      h('button', { class: 'pill', type: 'button', onclick: () => { const t = Array.from(words.children).map(c => c.dataset.say).join('、'); if (t) speak(t); } }, '🔊 ぜんぶ'),
+      h('button', { class: 'pill', type: 'button', onclick: () => { words.innerHTML = ''; } }, '🧽 けす'));
+    const scr = h('section', { class: 'screen talk' },
+      h('div', { class: 'ptop' }, h('span', { class: 'ttl' }, '🗣️ サインで つたえる'), h('span', { style: 'color:var(--sub);font-size:15px;font-weight:500' }, '📚 ' + (s ? s.name : ''))),
+      cb.box, result, strip);
+    main.appendChild(scr);
+    let last = null;
+    function showIdle() {
+      result.className = 'result';
+      result.innerHTML = '';
+      if (!recCount(s)) result.append(h('div', { class: 'hint' }, h('span', { class: 'emo' }, '📭'), 'この セットには まだ サインが ありません。', h('br'), '⚙️ ながおし →「サインを とうろく」'));
+      else result.append(h('div', { class: 'hint' }, h('span', { class: 'emo' }, '🤟'), 'てを あげて サインを してね', h('br'), h('small', null, 'おわったら てを おろす（または 手を とめる）')));
+    }
+    function showWord(w, scores) {
+      last = w;
+      result.className = 'result'; void result.offsetWidth; result.className = 'result pop';
+      result.style.borderColor = w.u ? 'var(--red)' : catColor(w.cat);
+      result.innerHTML = '';
+      result.append(h('span', { class: 'emo' }, w.e), h('div', { class: 'word' }, w.w), h('div', { class: 'phrase' }, w.p && w.p !== w.w ? w.p : ''),
+        h('button', { class: 'pill again', type: 'button', onclick: () => announce(w) }, '🔊 もういちど'));
+      if (st.debug && scores) result.append(h('div', { class: 'scores' }, scores));
+    }
+    function addChip(w) {
+      const c = h('button', { class: 'wchip' + (w.u ? ' u' : ''), type: 'button', onclick: () => speak(sayText(w)) }, h('span', { class: 'emo' }, w.e), w.w);
+      c.dataset.say = w.s || w.w;
+      words.appendChild(c);
+      while (words.children.length > 8) words.firstChild.remove();
+      words.scrollLeft = words.scrollWidth;
+    }
+    function decided(w, kind, seq, scores) {
+      showWord(w, scores); addChip(w); logPush(w, kind);
+      bigCard(w);
+      if (kind === 'pick' && st.learn && !s.builtin && seq) { addSample(w, seq); saveSet(s); }
+    }
+    showIdle();
+    if (!recCount(s)) { cb.loading.hidden = true; cb.status.hidden = true; return; }
+    const seg = newSeg();
+    let busyUntil = 0;
+    keepAwake();
+    bootCam(cb, info => {
+      drawCam(cb.cv, info, seg);
+      if (st.debug) cb.fps.textContent = Math.round(V.fps) + 'fps ' + (V.delegate || '');
+      const r = seg.push(info.fr, info.t);
+      const [cls, txt] = statusOf(seg, info);
+      cb.status.className = 'status ' + cls; if (cb.status.textContent !== txt) cb.status.textContent = txt;
+      if (!r || overlayOpen() || info.t < busyUntil) return;
+      const seq = E.resample(r.frames, r.times);
+      const prep = prepFor(s), th = E.thresholds(prep, st.sens);
+      const ranked = E.rank(prep, seq, { mirror: st.mirror });
+      const j = E.judge(ranked, th);
+      const scores = ranked.slice(0, 3).map(x => (wordById(s, x.id) || {}).w + ' ' + x.d.toFixed(2)).join(' / ') + '  しきい ' + th.ok.toFixed(2) + ' (' + r.why + ')';
+      if (j.kind === 'ok' && st.confirm !== 'always') decided(wordById(s, j.top[0].id), 'ok', seq, scores);
+      else if (j.kind === 'ok' || j.kind === 'maybe') {
+        const cands = j.top.map(x => wordById(s, x.id)).filter(Boolean);
+        maybeCard(cands, w => decided(w, 'pick', seq, scores));
+      } else {
+        busyUntil = info.t + 600;
+        result.classList.remove('pop'); void result.offsetWidth;
+        toast('🤔 もう いちど サインして みてね', 1600);
+        if (st.debug) result.append(h('div', { class: 'scores' }, scores));
+      }
+    });
+    leave = () => { stopCam(); };
+  }
+
+  /* ---------- 大きな カード・もしかして ---------- */
+  let ovTimer = null, ovRepeat = null;
+  const overlayOpen = () => !!$('.overlay');
+  function closeOverlay() { clearTimeout(ovTimer); clearInterval(ovRepeat); const o = $('.overlay'); if (o) o.remove(); }
+  function bigCard(w) {
+    closeOverlay();
+    const card = h('div', { class: 'bigcard', style: '--c:' + (w.u ? 'var(--red)' : catColor(w.cat)) }, h('span', { class: 'emo' }, w.e), h('div', { class: 'word' }, w.w), w.p && w.p !== w.w ? h('div', { class: 'phrase' }, w.p) : null);
+    const ov = h('div', { class: 'overlay' + (w.u ? ' urgent' : '') }, h('div', { style: 'display:flex;flex-direction:column;align-items:center' }, card,
+      w.u ? h('button', { class: 'big-btn red ack', type: 'button', onclick: closeOverlay }, '👌 わかったよ') : h('div', { class: 'tapnote' }, 'タップで とじる')));
+    if (!w.u) ov.addEventListener('click', closeOverlay);
+    document.body.appendChild(ov);
+    announce(w);
+    if (w.u && st.urgentRepeat) { let n = 0; ovRepeat = setInterval(() => { if (++n > 5) { clearInterval(ovRepeat); return; } announce(w); }, 4500); }
+    else if (!w.u) ovTimer = setTimeout(closeOverlay, 2800);
+  }
+  function maybeCard(cands, onPick) {
+    closeOverlay();
+    if (!cands.length) return;
+    beep();
+    const box = h('div', { class: 'maybe' }, h('h2', null, '🤔 もしかして？'),
+      h('div', { class: 'cands' }, cands.map(w => h('button', { class: 'cand', type: 'button', style: 'border-color:' + catColor(w.cat), onclick: e => { e.stopPropagation(); closeOverlay(); onPick(w); } }, h('span', { class: 'emo' }, w.e), h('span', { class: 'word' }, w.w)))),
+      h('button', { class: 'pill', type: 'button', onclick: closeOverlay }, '✋ ちがう'));
+    const ov = h('div', { class: 'overlay' }, box);
+    ov.addEventListener('click', e => { if (e.target === ov) closeOverlay(); });
+    document.body.appendChild(ov);
+    ovTimer = setTimeout(closeOverlay, 9000);
+  }
+
+  /* ---------- サインを みる ---------- */
+  function catChips(sel, onPick, extra) {
+    return h('div', { class: 'cats' }, [h('button', { type: 'button', class: sel === '' ? 'on' : '', onclick: () => onPick('') }, 'ぜんぶ')].concat(VOCAB_CATS.map(c => h('button', { type: 'button', class: sel === c.id ? 'on' : '', style: '--c:' + c.c, onclick: () => onPick(c.id) }, h('span', { class: 'emo' }, c.e), c.name)), extra || []));
+  }
+  function renderWords() {
+    const s = active();
+    let cat = '';
+    const body = h('div', { class: 'pbody' }), head = h('div', { class: 'phead' });
+    const scr = h('section', { class: 'screen words-scr' }, h('div', { class: 'ptop' }, h('span', { class: 'ttl' }, '📖 サインを みる')), h('div', { class: 'panel', style: 'flex:1' }, head, body));
+    main.appendChild(scr);
+    function draw() {
+      head.innerHTML = ''; head.append(catChips(cat, c => { cat = c; draw(); }));
+      body.innerHTML = '';
+      const list = s.words.filter(w => !w.off && w.samples && w.samples.length && (!cat || w.cat === cat));
+      if (!list.length) { body.append(h('p', { class: 'help', style: 'text-align:center;font-size:18px' }, 'とうろく された サインが ありません')); return; }
+      body.append(h('div', { class: 'wgrid' }, list.map(w => h('button', { class: 'wcard', type: 'button', style: 'border-color:' + catColor(w.cat), onclick: () => viewer(w) }, h('span', { class: 'emo' }, w.e), h('span', { class: 'nm' }, w.w)))));
+    }
+    draw();
+  }
+  function viewer(w) {
+    let i = 0, stop = () => {};
+    const cv = h('canvas');
+    const no = h('span', { style: 'color:var(--sub);font-size:15px' });
+    const play = () => { stop(); stop = animateSample(cv, w.samples[i]); no.textContent = w.samples.length > 1 ? 'みほん ' + (i + 1) + ' / ' + w.samples.length : ''; };
+    const ov = h('div', { class: 'viewer' }, h('div', { class: 'vbox' },
+      h('div', { class: 'anim' }, cv),
+      h('div', { class: 'side' }, h('span', { class: 'emo' }, w.e), h('span', { class: 'word' }, w.w), w.memo ? h('div', { class: 'memo-t' }, w.memo) : null, no,
+        h('div', { class: 'row', style: 'justify-content:center' },
+          h('button', { class: 'pill', type: 'button', onclick: () => speak(sayText(w)) }, '🔊 きく'),
+          w.samples.length > 1 ? h('button', { class: 'pill', type: 'button', onclick: () => { i = (i + 1) % w.samples.length; play(); } }, '🔁 ほかの みほん') : null),
+        h('button', { class: 'big-btn blue', type: 'button', style: 'min-width:200px;min-height:64px', onclick: () => { stop(); ov.remove(); } }, 'とじる'))));
+    document.body.appendChild(ov);
+    play(); speak(sayText(w));
+  }
+
+  /* ---------- サインを とうろく（スタジオ） ---------- */
+  function renderStudio(arg) {
+    let s = active();
+    if (!s || s.builtin) { toast('配布セットは へんしゅう できません。コピーして ください'); go('home'); openTeacher('sets'); return; }
+    let cat = '', filter = 'all', q = '', sel = arg || null, rec = null;
+    const cb = camBox();
+    const head = h('div', { class: 'phead' }), body = h('div', { class: 'pbody' });
+    const cdown = h('div', { class: 'countdown' });
+    cb.box.appendChild(cdown);
+    const scr = h('section', { class: 'screen studio' },
+      h('div', { class: 'ptop' }, h('span', { class: 'ttl' }, '🎥 サインを とうろく ― ' + s.name), h('button', { class: 'pill small', type: 'button', onclick: () => openTeacher('settings') }, '⚙️ せってい')),
+      cb.box, h('div', { class: 'panel' }, head, body));
+    main.appendChild(scr);
+    const stops = [];
+    const stopAnims = () => { while (stops.length) stops.pop()(); };
+
+    function drawList() {
+      stopAnims(); sel = null;
+      head.innerHTML = '';
+      head.append(
+        h('div', { class: 'search' }, h('input', { type: 'search', placeholder: '🔍 ことばを さがす', value: q, oninput: e => { q = e.target.value.trim(); drawGrid(); } }),
+          h('div', { class: 'seg' }, [['all', 'ぜんぶ'], ['todo', 'まだ'], ['done', 'できた']].map(([k, t]) => h('button', { type: 'button', class: filter === k ? 'on' : '', onclick: () => { filter = k; drawList(); } }, t)))),
+        catChips(cat, c => { cat = c; drawList(); }));
+      drawGrid();
+    }
+    function drawGrid() {
+      body.innerHTML = '';
+      const list = s.words.filter(w => (!cat || w.cat === cat) && (!q || (w.w + w.p + (w.s || '')).indexOf(q) >= 0) && (filter === 'all' || (filter === 'done') === !!(w.samples && w.samples.length)));
+      const done = s.words.filter(w => w.samples && w.samples.length).length;
+      body.append(h('p', { class: 'help', style: 'margin:0 0 10px' }, 'とうろく できた サイン：' + done + ' / ' + s.words.length + '　（1つの ことばに 3回 くらい とうろく すると よく わかるように なります）'));
+      body.append(h('div', { class: 'wgrid' },
+        list.map(w => h('button', { class: 'wcard' + (w.samples.length ? ' has' : '') + (w.off ? ' off' : '') + (w.u ? ' u' : ''), type: 'button', onclick: () => drawDetail(w) },
+          h('span', { class: 'emo' }, w.e), h('span', { class: 'nm' }, w.w), h('span', { class: 'dots' }, [0, 1, 2].map(k => h('i', { class: k < w.samples.length ? 'on' : '' }))), w.samples.length > 3 ? h('small', { style: 'font-size:11px;color:var(--sub)' }, w.samples.length + 'こ') : null)),
+        h('button', { class: 'wcard add', type: 'button', onclick: () => editWord(null, s, w => { drawDetail(w); }) }, h('span', { class: 'emo' }, '➕'), h('span', { class: 'nm' }, 'ことばを ふやす'))));
+    }
+    let msgBox = null;
+    function drawDetail(w) {
+      stopAnims(); sel = w;
+      head.innerHTML = '';
+      head.append(h('div', { class: 'row' }, h('button', { class: 'pill small', type: 'button', onclick: () => { cancelRec(); drawList(); } }, '← もどる'),
+        h('span', { style: 'flex:1' }), h('button', { class: 'pill small', type: 'button', onclick: () => editWord(w, s, () => drawDetail(w)) }, '✏️ ことばを なおす')));
+      body.innerHTML = '';
+      msgBox = h('div');
+      const memo = h('textarea', { class: 'memo', placeholder: 'サインの メモ（て の かたち・ばしょ・うごき など。「サインを みる」で 表示されます）' });
+      memo.value = w.memo || '';
+      memo.addEventListener('change', () => { w.memo = memo.value.trim(); saveSet(s); });
+      body.append(h('div', { class: 'detail' },
+        h('div', { class: 'dhead' }, h('span', { class: 'emo' }, w.e), h('div', null, h('div', { class: 'nm' }, w.w), h('small', null, '🔊「' + (w.p || w.w) + '」　' + ((CAT[w.cat] || {}).name || '') + (w.u ? '　🚨いそぎ' : '') + (w.off ? '　（つかわない）' : '')))),
+        h('div', { class: 'recrow' },
+          h('button', { class: 'big-btn red', type: 'button', style: 'min-width:220px;min-height:68px', onclick: () => startRec(w, 1) }, '● 1回 とる'),
+          h('button', { class: 'big-btn vio', type: 'button', style: 'min-width:220px;min-height:68px', onclick: () => startRec(w, 3) }, '●●● 3回 つづけて')),
+        h('p', { class: 'help', style: 'margin:0' }, '「どうぞ」の あとに サイン → おわったら 手を おろす（または 手を とめる）と 1回 ぶん 保存されます。'),
+        msgBox, memo,
+        h('div', { class: 'samples' }, (w.samples || []).map((smp, i) => {
+          const cv = h('canvas');
+          const box = h('div', { class: 'smp' }, cv, h('span', { class: 'no' }, String(i + 1)),
+            h('button', { class: 'del', type: 'button', onclick: () => { if (!confirm((i + 1) + 'ばんの みほんを けしますか？')) return; w.samples.splice(i, 1); saveSet(s); drawDetail(w); } }, '✕'));
+          setTimeout(() => stops.push(animateSample(cv, smp)), 30 * i);
+          return box;
+        }))));
+    }
+    function cancelRec() { if (rec) { clearTimeout(rec.timer); rec = null; } cdown.textContent = ''; }
+    function startRec(w, n) {
+      cancelRec();
+      rec = { w, left: n, armed: false, timer: null };
+      countdown(3);
+    }
+    function countdown(k) {
+      if (!rec) return;
+      if (k === 0) { cdown.textContent = ''; rec.armed = true; seg.reset(); speak('どうぞ', 1.1); return; }
+      cdown.textContent = k; beep();
+      rec.timer = setTimeout(() => countdown(k - 1), 800);
+    }
+    function onSample(seq) {
+      const w = rec.w;
+      addSample(w, seq); saveSet(s);
+      // ほかの ことばと にていないか しらべる
+      const others = prepFor(s); const th = E.thresholds(others, st.sens);
+      const rk = E.rank(others, seq, { mirror: false }).filter(x => x.id !== w.id);
+      const selfD = (() => { const own = E.prepare([{ id: w.id, samples: w.samples.slice(0, -1) }]); const r = E.rank(own, seq, {}); return r.length ? r[0].d : null; })();
+      rec.left--;
+      const left = rec.left;
+      drawDetail(w);
+      const msgs = [];
+      if (rk.length && rk[0].d < th.ok * 1.1) { const o = wordById(s, rk[0].id); msgs.push(h('div', { class: 'warn' }, '⚠️「' + o.w + '」の サインと にています。まちがえやすいので、ちがいが はっきり するように とりなおすか、どちらかの とりかたを かえて みてください。')); }
+      if (selfD != null && selfD > th.ok) msgs.push(h('div', { class: 'warn' }, 'ℹ️ まえの みほんと すこし ちがう うごきでした。ちがう やりかたも おぼえさせたい ときは このままで だいじょうぶです。'));
+      if (!msgs.length) msgs.push(h('div', { class: 'okmsg' }, '✅ ほぞん しました（' + w.samples.length + 'こめ）' + (rk.length ? '　いちばん にている ほかの サイン：「' + (wordById(s, rk[0].id) || {}).w + '」' + (st.debug ? ' ' + rk[0].d.toFixed(2) : '') : '')));
+      msgBox.append(...msgs);
+      if (left > 0) { rec.armed = false; rec.timer = setTimeout(() => countdown(2), 900); } else rec = null;
+    }
+    const seg = newSeg();
+    if (sel) drawDetail(sel); else drawList();
+    bootCam(cb, info => {
+      drawCam(cb.cv, info, seg);
+      if (st.debug) cb.fps.textContent = Math.round(V.fps) + 'fps ' + (V.delegate || '');
+      const r = seg.push(info.fr, info.t);
+      let [cls, txt] = statusOf(seg, info);
+      if (!rec) { txt = sel ? '「● とる」を おすと とうろく できます' : '← ことばを えらんでください'; cls = ''; }
+      else if (!rec.armed) { txt = '⏳ よーい…'; }
+      else if (rec.armed && seg.state === 'idle') txt = '🔴 「' + rec.w.w + '」の サインを どうぞ';
+      cb.status.className = 'status ' + cls; if (cb.status.textContent !== txt) cb.status.textContent = txt;
+      if (r && rec && rec.armed) { rec.armed = false; chime(false); onSample(E.resample(r.frames, r.times)); }
+    });
+    leave = () => { cancelRec(); stopAnims(); stopCam(); };
+  }
+
+  /* ---------- ことばの 編集 ---------- */
+  function editWord(w, s, after) {
+    const isNew = !w;
+    const d = w ? Object.assign({}, w) : { id: 'my-' + uid(), cat: 'aisatsu', e: '🤟', w: '', p: '', s: '', u: false, memo: '', off: false, samples: [] };
+    const f = (label, key, ph) => { const i = h('input', { type: 'text', value: d[key] || '', placeholder: ph || '' }); i.addEventListener('input', () => d[key] = i.value); return h('label', { class: 'field' }, h('span', null, label), i); };
+    const catSel = h('select', null, VOCAB_CATS.map(c => h('option', { value: c.id, selected: c.id === d.cat }, c.e + ' ' + c.name)));
+    catSel.addEventListener('change', () => d.cat = catSel.value);
+    const tog = (label, key) => { const b = h('button', { type: 'button', class: 'pill' + (d[key] ? ' on' : '') }, (d[key] ? '✅ ' : '⬜ ') + label); b.addEventListener('click', () => { d[key] = !d[key]; b.className = 'pill' + (d[key] ? ' on' : ''); b.textContent = (d[key] ? '✅ ' : '⬜ ') + label; }); return b; };
+    $('#edTitle').textContent = isNew ? '➕ ことばを ふやす' : '✏️ ことばを なおす';
+    const bodyEl = $('#edBody'); bodyEl.innerHTML = '';
+    bodyEl.append(
+      f('えもじ（1つ）', 'e', '🤟'), f('ことば（カードに 大きく 出る）', 'w', 'れい：トイレ'), f('ていねいな いいかた（よみあげ）', 'p', 'れい：トイレに いきたいです'), f('よみかた（よみまちがえる ときだけ。漢字など）', 's', 'れい：歯'),
+      h('label', { class: 'field' }, h('span', null, 'なかま'), catSel),
+      h('div', { class: 'row' }, tog('いそぎ（赤く 光って くりかえす）', 'u'), tog('つかわない（よみとりから はずす）', 'off')),
+      h('div', { class: 'row', style: 'margin-top:6px' },
+        h('button', { class: 'big-btn go', type: 'button', style: 'min-width:200px;min-height:60px', onclick: async () => {
+          d.w = (d.w || '').trim(); if (!d.w) { toast('ことばを いれてください'); return; }
+          d.p = (d.p || '').trim() || d.w; d.e = (d.e || '').trim() || '🤟'; d.s = (d.s || '').trim();
+          if (isNew) { s.words.push(d); w = d; } else Object.assign(w, d);
+          await saveSet(s); $('#editor').classList.remove('open'); after && after(w);
+        } }, '💾 ほぞん'),
+        isNew ? '' : h('button', { class: 'pill danger', type: 'button', onclick: async () => { if (!confirm('「' + w.w + '」を セットから けしますか？（とうろくした サインも きえます）')) return; s.words.splice(s.words.indexOf(w), 1); await saveSet(s); $('#editor').classList.remove('open'); go('studio'); } }, '🗑️ けす')));
+    $('#editor').classList.add('open');
+  }
+  $('#edClose').addEventListener('click', () => $('#editor').classList.remove('open'));
+  $('#editor').addEventListener('click', e => { if (e.target.id === 'editor') $('#editor').classList.remove('open'); });
+
+  /* ============================================================
+     先生用メニュー
+     ============================================================ */
+  let tTab = 'sets';
+  function openTeacher(tab) { if (tab) tTab = tab; if (canSpeak) speechSynthesis.cancel(); renderTeacher(); $('#teacher').classList.add('open'); }
+  function closeTeacher() { $('#teacher').classList.remove('open'); }
+  $('#tClose').addEventListener('click', closeTeacher);
+  $('#teacher').addEventListener('click', e => { if (e.target.id === 'teacher') closeTeacher(); });
+  function renderTeacher() {
+    const tabs = $('#tTabs'); tabs.innerHTML = '';
+    [['sets', '📚 セット・とうろく'], ['settings', '🛠️ せってい'], ['log', '📊 きろく'], ['help', '❓ つかいかた']].forEach(([k, t]) => tabs.append(h('button', { type: 'button', class: tTab === k ? 'on' : '', onclick: () => { tTab = k; renderTeacher(); } }, t)));
+    const b = $('#tBody'); b.innerHTML = '';
+    ({ sets: tSets, settings: tSettings, log: tLog, help: tHelp })[tTab](b);
+  }
+  function tSets(b) {
+    const s = active();
+    put(b, h('button', { class: 'big-btn red', type: 'button', disabled: !s || s.builtin, onclick: () => { closeTeacher(); go('studio'); } }, '🎥 サインを とうろく する'),
+      s && s.builtin ? h('p', { class: 'help', style: 'margin:0' }, '配布セットは そのままでは へんしゅう できません。「コピー」すると 自分の セットに なり、とうろく・なじませが できます。') : null,
+      h('div', { class: 'lb', style: 'font-size:17px' }, 'つかう セットを えらぶ'));
+    const list = h('div', { class: 'setlist' });
+    SETS.forEach(x => {
+      const on = x.id === st.activeSet;
+      list.append(h('div', { class: 'setrow' + (on ? ' on' : '') },
+        h('button', { class: 'pill small' + (on ? ' on' : ''), type: 'button', onclick: async () => { await ensureLoaded(x); st.activeSet = x.id; saveSt(); try { localStorage.setItem(ST_KEY + '-chosen', '1'); } catch (e) { /* 無視 */ } renderTeacher(); if (cur !== 'studio') go(cur); } }, on ? '✅ つかう' : 'えらぶ'),
+        h('div', { class: 'nm' }, (x.builtin ? '🔒 ' : '') + x.name, h('small', null, x.builtin ? '配布セット' + (x.desc ? '・' + x.desc : '') + (x.loaded ? '　サイン ' + recCount(x) + 'こ' : '') : 'ことば ' + x.words.length + '・サイン ' + recCount(x) + 'こ')),
+        h('button', { class: 'pill small', type: 'button', onclick: async () => { await ensureLoaded(x); const name = prompt('コピーした セットの なまえ', x.name + '（' + (x.builtin ? 'じぶんよう' : 'コピー') + '）'); if (!name) return; const c = { id: 'u-' + uid(), name, made: Date.now(), loaded: true, words: JSON.parse(JSON.stringify(x.words)) }; await DB.put(c); SETS.push(c); st.activeSet = c.id; saveSt(); renderTeacher(); } }, '📄 コピー'),
+        x.builtin ? null : h('button', { class: 'pill small', type: 'button', onclick: async () => { const name = prompt('セットの なまえ', x.name); if (!name) return; x.name = name; await saveSet(x); renderTeacher(); } }, '✏️'),
+        h('button', { class: 'pill small', type: 'button', onclick: async () => { await ensureLoaded(x); exportSet(x); } }, '📤 かきだす'),
+        x.builtin ? null : h('button', { class: 'pill small danger', type: 'button', onclick: async () => { if (!confirm('「' + x.name + '」を けしますか？ とうろくした サインも ぜんぶ きえます。（さきに「かきだす」で バックアップ できます）')) return; await DB.del(x.id); SETS.splice(SETS.indexOf(x), 1); if (st.activeSet === x.id) st.activeSet = (SETS[0] || {}).id || ''; saveSt(); renderTeacher(); } }, '🗑️')));
+    });
+    b.append(list,
+      h('div', { class: 'row' },
+        h('button', { class: 'pill', type: 'button', onclick: async () => { const name = prompt('あたらしい セットの なまえ（れい：○○さんの サイン、マカトン）', ''); if (!name) return; const all = confirm('はじめから ある ことば（' + VOCAB.length + 'ご）を 入れますか？\n\nOK → ぜんぶ 入れる\nキャンセル → からっぽで つくる'); const c = { id: 'u-' + uid(), name, made: Date.now(), loaded: true, words: all ? VOCAB.map(wordFromVocab) : [] }; await DB.put(c); SETS.push(c); st.activeSet = c.id; saveSt(); renderTeacher(); } }, '➕ あたらしい セット'),
+        h('button', { class: 'pill', type: 'button', onclick: () => $('#fileIn').click() }, '📥 ファイルを よみこむ')),
+      h('p', { class: 'help', style: 'margin:0' }, '「かきだす」で できた ファイル（.json）は AirDrop や メールで ほかの iPad に わたせます。うけとった iPad で「ファイルを よみこむ」を おすと、とうろく しなくても すぐ つかえます。カメラの 映像は 保存されず、手と からだの 点の 動きだけが 入ります。'));
+  }
+  $('#fileIn').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) importFile(f); e.target.value = ''; });
+  function tSettings(b) {
+    const seg = (label, key, opts, help) => h('div', { class: 'row' }, h('span', { class: 'lb' }, label),
+      h('div', { class: 'seg' }, opts.map(([v, t]) => h('button', { type: 'button', class: st[key] === v ? 'on' : '', onclick: () => { st[key] = v; saveSt(); syncSeg(); renderTeacher(); } }, t))), help ? h('small', null, help) : null);
+    const range = (label, key, min, max, step, fmt, help) => { const out = h('span', { style: 'min-width:60px' }, fmt(st[key])); const r = h('input', { type: 'range', min, max, step, value: st[key] }); r.addEventListener('input', () => { st[key] = parseFloat(r.value); out.textContent = fmt(st[key]); saveSt(); syncSeg(); }); return h('div', { class: 'row' }, h('span', { class: 'lb' }, label), r, out, help ? h('small', null, help) : null); };
+    b.append(
+      seg('きき手', 'lefty', [[false, '✋ みぎ'], [true, '🤚 ひだり']], '片手の サインは どちらの 手でも よみとります'),
+      seg('よみあげ', 'say', [['w', 'ことばだけ'], ['p', 'ていねいに'], ['none', 'よまない']]),
+      range('こえの はやさ', 'rate', 0.6, 1.3, 0.05, v => v.toFixed(2)),
+      seg('ピンポン音', 'chime', [[true, 'ならす'], [false, 'ならさない']]),
+      seg('いそぎの くりかえし', 'urgentRepeat', [[true, 'くりかえす'], [false, '1回だけ']], 'トイレ・いたい などは「わかったよ」を おすまで 知らせます'),
+      seg('たしかめ', 'confirm', [['auto', 'じしんが あれば すぐ'], ['always', 'いつも えらばせる']]),
+      seg('かんど', 'sens', [[1, 'きびしい'], [2, 'ふつう'], [3, 'ゆるい']], 'まちがいが 多い → きびしい ／ わかってもらえない → ゆるい'),
+      seg('左右はんたいの サイン', 'mirror', [[true, 'OK'], [false, 'みとめない']], '向かいあって まねした 子の サインも わかるように します'),
+      seg('手を とめて きめる', 'hold', [[true, 'つかう'], [false, 'つかわない']], '手を おろさなくても、止めると 1つの サインとして 区切ります'),
+      seg('とめる 長さ', 'holdMs', [[500, 'みじかい'], [700, 'ふつう'], [1000, 'ながい']]),
+      range('おろす いち', 'restY', 0.9, 2.8, 0.05, v => v.toFixed(2), 'カメラ画面の 黄色い 線より 下に 手が あると「まっている」と みなします。すわって 机に 手を おく ときは 小さめに'),
+      seg('カメラの えいぞう', 'showVideo', [[true, 'みせる'], [false, 'ほねだけ']], '映像が 気になる 子には「ほねだけ」'),
+      seg('なじませ', 'learn', [[true, 'する'], [false, 'しない']], '「もしかして？」で えらんだ サインを その子の 見本として おぼえます（自分の セットのみ）'),
+      seg('すうじを みせる', 'debug', [[false, 'みせない'], [true, 'みせる']], '先生用：近さの すうじ・fps を 表示')
+    );
+  }
+  function tLog(b) {
+    const a = logAll();
+    const day = new Date(); day.setHours(0, 0, 0, 0);
+    const today = a.filter(x => x.t >= day.getTime());
+    const cnt = {}; a.filter(x => x.t >= Date.now() - 30 * 864e5).forEach(x => { cnt[x.w] = (cnt[x.w] || 0) + 1; });
+    const top = Object.keys(cnt).sort((p, q) => cnt[q] - cnt[p]).slice(0, 20);
+    b.append(h('div', { class: 'lb', style: 'font-size:17px' }, '📅 きょう つたえた ことば（' + today.length + '）'),
+      today.length ? h('table', { class: 'log' }, today.slice().reverse().slice(0, 60).map(x => h('tr', null, h('td', null, new Date(x.t).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })), h('td', null, x.w), h('td', null, x.k === 'pick' ? 'えらんだ' : 'サイン')))) : h('p', { class: 'help' }, 'まだ ありません'),
+      h('div', { class: 'lb', style: 'font-size:17px' }, '📈 この 30日で よく つかった ことば'),
+      top.length ? h('table', { class: 'log' }, top.map(k => h('tr', null, h('td', null, k), h('td', null, cnt[k] + ' 回')))) : h('p', { class: 'help' }, 'まだ ありません'),
+      h('div', { class: 'row' },
+        h('button', { class: 'pill', type: 'button', onclick: () => { const csv = '﻿日時,ことば,しかた\n' + a.map(x => new Date(x.t).toLocaleString('ja-JP') + ',' + x.w + ',' + (x.k === 'pick' ? 'えらんだ' : 'サイン')).join('\n'); const el = h('a', { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: 'サインのきろく.csv' }); document.body.appendChild(el); el.click(); setTimeout(() => el.remove(), 500); } }, '📄 CSV で かきだす'),
+        h('button', { class: 'pill danger', type: 'button', onclick: () => { if (confirm('きろくを ぜんぶ けしますか？')) { localStorage.removeItem(LOG_KEY); renderTeacher(); } } }, '🗑️ きろくを けす')),
+      h('p', { class: 'help', style: 'margin:0' }, 'きろくは この iPad の 中だけに あります。'));
+  }
+  function tHelp(b) {
+    b.innerHTML = `
+    <div class="help" style="font-size:16px;color:var(--ink)">
+    <b>1. サインを とうろく する</b><br>「セット・とうろく」→「🎥 サインを とうろく」→ ことばを えらぶ →「●●● 3回 つづけて」。「どうぞ」の あとに サインを して、手を おろす（または 止める）と 1回分 保存されます。<br>
+    ・3回 くらい とると よく わかるように なります。ちがう 人（先生・子ども）で とると、だれが やっても わかりやすく なります。<br>
+    ・ほかの サインと にていると ⚠️ で 知らせます。<br><br>
+    <b>2. つたえる</b><br>ホーム →「🗣️ つたえる」。カメラに かたと 手が うつる ように iPad を おきます（スタンドで ななめ前・80cm〜1.5m くらい）。<br>
+    てを あげて サイン → おろす と、大きな カードと こえで つたえます。じしんが ない ときは「もしかして？」で えらべます。<br>
+    ・トイレ・いたい など「いそぎ」の ことばは 赤く 光り、「わかったよ」を おすまで くりかえします。<br>
+    ・つづけて サインすると 下に ことばが ならび、「🔊 ぜんぶ」で 文として よみます（れい：おちゃ ＋ ください）。<br><br>
+    <b>3. くばる・うけとる</b><br>「📤 かきだす」→ AirDrop などで わたす → うけとった iPad で「📥 ファイルを よみこむ」。手話・マカトン・その子の オリジナルなど、セットを いくつでも 作って きりかえられます。<br><br>
+    <b>4. その子に なじませる</b><br>配布セットを「コピー」して その子用に し、その子の サインを 1〜3回 とうろく すると、その子の くせも わかるように なります。「なじませ」を「する」に すると、「もしかして？」で えらんだ ものも おぼえます。<br><br>
+    <b>プライバシー</b><br>カメラの 映像は どこにも 送らず、保存も しません。iPad の 中で 手と からだの 点に して、その 動きだけを 使います。<br><br>
+    <b>うまく いかない とき</b><br>・「からだが うつるように」と 出る → かたが 画面に 入る ように はなれる<br>・サインの とちゅうで 区切られる →「手を とめて きめる」を「ながい」か「つかわない」に<br>・まちがいが 多い →「かんど」を「きびしい」・にている サインを とりなおす<br>・手を おろしても 終わらない →「おろす いち」を 小さく
+    </div>`;
+  }
+
+  /* ---------- ⚙️ ながおし ---------- */
+  (function () {
+    const g = $('#gear'); let t = null; const c = () => { clearTimeout(t); g.classList.remove('pressing'); };
+    g.addEventListener('pointerdown', e => { e.preventDefault(); g.classList.add('pressing'); t = setTimeout(() => { c(); openTeacher(); }, 1500); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => g.addEventListener(ev, c));
+    g.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => { if (e.shiftKey && (e.key === 'S' || e.key === 's') && !/INPUT|SELECT|TEXTAREA/.test((e.target || {}).tagName || '')) openTeacher(); if (e.key === 'Escape') { closeTeacher(); $('#editor').classList.remove('open'); closeOverlay(); } });
+  })();
+  function makeTouchIcon() { try { const c = document.createElement('canvas'); c.width = c.height = 180; const g = c.getContext('2d'); g.fillStyle = '#74C0FC'; g.fillRect(0, 0, 180, 180); g.font = '118px "Apple Color Emoji","Segoe UI Emoji",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('🤟', 90, 98); $('#touchIcon').href = c.toDataURL(); } catch (e) { /* 無視 */ } }
+
+  /* ============================================================
+     はじまり
+     ============================================================ */
+  if (canSpeak) { loadVoice(); speechSynthesis.onvoiceschanged = loadVoice; }
+  // iPad は さいしょの タップで 音を 出せるように なる
+  document.addEventListener('pointerdown', function unlock() { audio(); if (canSpeak) { try { const u = new SpeechSynthesisUtterance(''); u.volume = 0; speechSynthesis.speak(u); } catch (e) { /* 無視 */ } } document.removeEventListener('pointerdown', unlock); }, { once: true });
+  makeTouchIcon();
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
+  loadSets().then(() => go('home')).catch(e => { console.error(e); go('home'); });
+  // つかいそうな ときは さきに よみとりの じゅんびを はじめておく
+  setTimeout(() => { if (recCount(active())) loadVision().catch(() => {}); }, 1500);
+  window.__sign = { E, V, get sets() { return SETS; }, st, prepFor, active };
+})();
+
+</script>
+</body>
+</html>
