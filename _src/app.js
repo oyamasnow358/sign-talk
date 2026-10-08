@@ -107,10 +107,20 @@
     const data = { format: 'mieel-sign-set', v: 1, name: s.name, made: new Date().toISOString().slice(0, 10), words: s.words.map(w => ({ id: w.id, cat: w.cat, e: w.e, w: w.w, p: w.p, s: w.s, u: !!w.u, memo: w.memo || '', off: !!w.off, samples: w.samples || [] })) };
     const json = JSON.stringify(data);
     const name = 'サインセット_' + s.name.replace(/[\\/:*?"<>|\s]/g, '') + '.json';
-    const file = typeof File === 'function' ? new File([json], name, { type: 'application/json' }) : null;
-    if (file && navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: s.name }).catch(() => {}); return; }
-    const a = h('a', { href: URL.createObjectURL(new Blob([json], { type: 'application/json' })), download: name }); document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    const download = () => {
+      const a = h('a', { href: URL.createObjectURL(new Blob([json], { type: 'application/json' })), download: name }); document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+      toast('💾「' + name + '」を ほぞん しました（' + (isIOS ? 'ファイル アプリ' : 'ダウンロード フォルダ') + '）', 4000);
+    };
+    // パソコンは かならず ダウンロード。iPad は AirDrop などの 共有 → だめなら ダウンロード
+    const file = isIOS && typeof File === 'function' ? new File([json], name, { type: 'application/json' }) : null;
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: s.name }).catch(e => { if (!e || e.name !== 'AbortError') download(); });
+      return;
+    }
+    download();
   }
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   async function importFile(file) {
     try {
       const j = JSON.parse(await file.text());
@@ -538,8 +548,31 @@
       head.append(
         h('div', { class: 'search' }, h('input', { type: 'search', placeholder: '🔍 ことばを さがす', value: q, oninput: e => { q = e.target.value.trim(); drawGrid(); } }),
           h('div', { class: 'seg' }, [['all', 'ぜんぶ'], ['todo', 'まだ'], ['done', 'できた']].map(([k, t]) => h('button', { type: 'button', class: filter === k ? 'on' : '', onclick: () => { filter = k; drawList(); } }, t)))),
-        catChips(cat, c => { cat = c; drawList(); }));
+        catChips(cat, c => { cat = c; drawList(); }),
+        h('div', { class: 'row' }, h('button', { class: 'pill small', type: 'button', onclick: drawCheck }, '🔍 にている サインを しらべる')));
       drawGrid();
+    }
+    // 見本を 1つずつ ほかの 見本で 判定して、まちがえやすい 組み合わせを 出す
+    function drawCheck() {
+      stopAnims(); body.innerHTML = '';
+      body.append(h('p', { class: 'help' }, '⏳ しらべています…（ことばが 多いと すこし かかります）'));
+      setTimeout(() => {
+        const prep = prepFor(s);
+        body.innerHTML = '';
+        const back = h('button', { class: 'pill small', type: 'button', onclick: drawGrid }, '← いちらんへ');
+        if (prep.items.length < 4) { body.append(back, h('p', { class: 'help' }, '2つ いじょうの ことばを、それぞれ 2回 いじょう とうろく すると しらべられます。')); return; }
+        const c = E.confusions(prep), name = id => (wordById(s, id) || { e: '', w: id });
+        body.append(h('div', { class: 'row', style: 'margin-bottom:10px' }, back),
+          h('div', { class: c.pairs.length ? 'warn' : 'okmsg' }, '見本どうしの テスト：' + c.ok + ' / ' + c.total + ' こ 正しく わかりました。' + (prep.learned ? '（この セットの 見本から「見分けに 効く ところ」を 学習ずみ）' : '')),
+          c.pairs.length ? h('p', { class: 'help' }, '↓ まちがえやすい 組み合わせです。ちがいが はっきり するように とりなおすか、見本を ふやして ください（上ほど にています）。') : h('p', { class: 'help' }, 'まちがえやすい 組み合わせは ありません。'),
+          h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, c.pairs.slice(0, 30).map(p => {
+            const A = name(p.a), Bw = name(p.b);
+            return h('div', { class: 'setrow' },
+              h('div', { class: 'nm' }, A.e + ' ' + A.w + '　⇔　' + Bw.e + ' ' + Bw.w, h('small', null, (p.ratio < 1 ? '⚠️ とても にている' : 'にている') + (st.debug ? '（' + p.ratio.toFixed(2) + '）' : ''))),
+              h('button', { class: 'pill small', type: 'button', onclick: () => drawDetail(wordById(s, p.a)) }, A.w),
+              h('button', { class: 'pill small', type: 'button', onclick: () => drawDetail(wordById(s, p.b)) }, Bw.w));
+          })));
+      }, 30);
     }
     function drawGrid() {
       body.innerHTML = '';
@@ -676,7 +709,7 @@
         h('div', { class: 'nm' }, (x.builtin ? '🔒 ' : '') + x.name, h('small', null, x.builtin ? '配布セット' + (x.desc ? '・' + x.desc : '') + (x.loaded ? '　サイン ' + recCount(x) + 'こ' : '') : 'ことば ' + x.words.length + '・サイン ' + recCount(x) + 'こ')),
         h('button', { class: 'pill small', type: 'button', onclick: async () => { await ensureLoaded(x); const name = prompt('コピーした セットの なまえ', x.name + '（' + (x.builtin ? 'じぶんよう' : 'コピー') + '）'); if (!name) return; const c = { id: 'u-' + uid(), name, made: Date.now(), loaded: true, words: JSON.parse(JSON.stringify(x.words)) }; await DB.put(c); SETS.push(c); st.activeSet = c.id; saveSt(); renderTeacher(); } }, '📄 コピー'),
         x.builtin ? null : h('button', { class: 'pill small', type: 'button', onclick: async () => { const name = prompt('セットの なまえ', x.name); if (!name) return; x.name = name; await saveSet(x); renderTeacher(); } }, '✏️'),
-        h('button', { class: 'pill small', type: 'button', onclick: async () => { await ensureLoaded(x); exportSet(x); } }, '📤 かきだす'),
+        h('button', { class: 'pill small', type: 'button', onclick: () => { if (x.loaded) exportSet(x); else ensureLoaded(x).then(() => { toast('じゅんび できました。もう いちど「かきだす」を おしてください'); renderTeacher(); }); } }, '📤 かきだす'),
         x.builtin ? null : h('button', { class: 'pill small danger', type: 'button', onclick: async () => { if (!confirm('「' + x.name + '」を けしますか？ とうろくした サインも ぜんぶ きえます。（さきに「かきだす」で バックアップ できます）')) return; await DB.del(x.id); SETS.splice(SETS.indexOf(x), 1); if (st.activeSet === x.id) st.activeSet = (SETS[0] || {}).id || ''; saveSt(); renderTeacher(); } }, '🗑️')));
     });
     b.append(list,
