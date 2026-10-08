@@ -79,7 +79,16 @@
   }
 
   /* ---------- 片手だけの サインは、どちらの手でも 右手として あつかう ---------- */
+  function cleanSeq(seq) {
+    // 1) 同じ 手を 2つと 数えた コマ：もう 1つの 手を けす
+    seq = seq.map(fr => { if (fr.d && fr.n) { const a = palm(fr.d), b = palm(fr.n); if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.3) return { d: fr.d, n: null, f: fr.f }; } return fr; });
+    // 2) 左手が 半分も うつって いない・ずっと 下の ほう → つかって いない 手
+    let cn = 0, low = 0; seq.forEach(fr => { if (fr.n) { cn++; if (palm(fr.n)[1] > 1.1) low++; } });
+    if (cn && (cn < seq.length * 0.5 || low > cn * 0.7)) seq = seq.map(fr => ({ d: fr.d, n: null, f: fr.f }));
+    return seq;
+  }
   function normalizeSeq(seq) {
+    seq = cleanSeq(seq);
     let d = 0, n = 0;
     seq.forEach(fr => { if (fr.d) d++; if (fr.n) n++; });
     return (d < seq.length * 0.3 && n > d) ? mirrorSeq(seq) : seq;
@@ -143,9 +152,9 @@
       const k = hi ? 0.7 : 1;
       put(o, NS, 'shape', 4.5 / NS * k);
       put(o + NS, NO, 'ori', 1.2 / NO * k);
-      put(o + NS + NO, 2, 'body', 0.25 * k);       // 手のひら（からだ基準）
-      put(o + NS + NO + 2, 2, 'face', 0.4 * k);    // 手のひら（鼻から）
-      put(o + NS + NO + 4, 2, 'face', 0.45 * k);   // 人さし指の先（鼻から）
+      put(o + NS + NO, 2, 'body', 0.5 * k);       // 手のひら（からだ基準）
+      put(o + NS + NO + 2, 2, 'face', 0.8 * k);    // 手のひら（鼻から）
+      put(o + NS + NO + 4, 2, 'face', 0.9 * k);   // 人さし指の先（鼻から）
     });
     put(HD * 2, 2, 'mov', 0.6); put(HD * 2 + 2, 2, 'mov', 0.4); put(HD * 2 + 4, 2, 'rel', 0.5);
   })();
@@ -186,9 +195,31 @@
     // 手を あげる・おろす とちゅう（いちばん 低い ところ）は かるく みる
     let ymax = -9; out.forEach(o => { const p = o.pd || o.pn; if (p) ymax = Math.max(ymax, p[1]); });
     out.forEach(o => { const p = o.pd || o.pn; o.w = p ? Math.max(0.25, Math.min(1, (ymax - p[1]) / 0.35 + 0.25)) : 0.5; });
+    // 平均を 1 に（止まった 形だけの 見本が 「なんでも 近い」に ならないように）
+    const wm = out.reduce((s, o) => s + o.w, 0) / out.length; out.forEach(o => { o.w /= wm; });
     return out;
   }
 
+  function keyPose(f) {
+    // 右手（なければ 左手）の 速さが 小さい コマを えらぶ
+    const sp = f.map((fr, k) => { const a = f[Math.max(0, k - 1)], b = f[Math.min(f.length - 1, k + 1)]; const pa = a.pd || a.pn, pb = b.pd || b.pn; return pa && pb && (fr.pd || fr.pn) ? Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) : 9; });
+    const idx = sp.map((s, k) => [s, k]).filter(x => x[0] < 9).sort((x, y) => x[0] - y[0]);
+    const pickN = Math.max(3, Math.round(idx.length * 0.35)), use = idx.slice(0, pickN).map(x => x[1]);
+    const v = new Float32Array(VD); let nd = 0, nn = 0;
+    const cntD = new Float32Array(1), out = { v, hd: false, hn: false, w: 1, motion: 0 };
+    use.forEach(k => { const fr = f[k]; if (fr.hd) { nd++; for (let d = 0; d < HD; d++) v[d] += fr.v[d]; } if (fr.hn) { nn++; for (let d = HD; d < HD * 2; d++) v[d] += fr.v[d]; } });
+    if (nd) { for (let d = 0; d < HD; d++) v[d] /= nd; out.hd = true; }
+    if (nn) { for (let d = HD; d < HD * 2; d++) v[d] /= nn; out.hn = nn >= use.length * 0.5; }
+    // うごきの 大きさ（ぜんたい）
+    out.motion = sp.filter(s => s < 9).reduce((s, x) => s + x, 0) / Math.max(1, sp.filter(s => s < 9).length);
+    return out;
+  }
+  function keyDist(a, b, W) {
+    let d = 0;
+    if (a.hd && b.hd) d += l1(a.v, b.v, W, 0, HD); else if (a.hd || b.hd) d += MISS_D;
+    if (a.hn && b.hn) d += l1(a.v, b.v, W, HD, HD * 2); else if (a.hn || b.hn) d += MISS_N;
+    return d + Math.abs(a.motion - b.motion) * 2;
+  }
   /* ---------- コマどうしの ちがい ---------- */
   function l1(a, b, W, from, to) { let s = 0; for (let i = from; i < to; i++) s += W[i] * Math.abs(a[i] - b[i]); return s; }
   function frameDist(a, b, W) {
@@ -218,7 +249,7 @@
   function learnWeights(items) {
     const byId = {}; items.forEach(it => (byId[it.id] = byId[it.id] || []).push(it));
     const ids = Object.keys(byId), multi = ids.filter(id => byId[id].length >= 2);
-    if (ids.length < 3 || multi.length < 2) return { W: BASE, learned: false };
+    if (ids.length < 10 || items.length < 40 || multi.length < 12 || items.length < ids.length * 2.5) return { W: BASE, learned: false };
     const Wv = new Float64Array(VD), Wn = new Float64Array(VD), means = [];
     ids.forEach(id => {
       const g = byId[id], L0 = g[0].f.length, sum = new Float64Array(VD), cnt = new Float64Array(VD);
@@ -254,34 +285,49 @@
   function prepare(words, opt) {
     const items = [];
     words.forEach(w => (w.samples || []).forEach((smp, i) => {
-      try { items.push({ id: w.id, i, f: features(normalizeSeq(decode(smp))) }); } catch (e) { /* こわれた 見本は とばす */ }
+      try { const f = features(normalizeSeq(decode(smp))); items.push({ id: w.id, i, f, k: keyPose(f) }); } catch (e) { /* こわれた 見本は とばす */ }
     }));
     const lw = opt && opt.noLearn ? { W: BASE, learned: false } : learnWeights(items);
     // 同じ ことばの 見本どうしの ちがい（その セットの「ふつうの ばらつき」）
     const intra = [];
     const byId = {};
     items.forEach(it => (byId[it.id] = byId[it.id] || []).push(it));
-    Object.keys(byId).forEach(id => { const g = byId[id]; for (let a = 0; a < g.length; a++) for (let b = a + 1; b < g.length; b++) intra.push(dtw(g[a].f, g[b].f, lw.W)); });
+    Object.keys(byId).forEach(id => { const g = byId[id]; for (let a = 0; a < g.length; a++) for (let b = a + 1; b < g.length; b++) intra.push(combo(g[a], g[b], lw.W)); });
     intra.sort((a, b) => a - b);
     const med = intra.length ? intra[Math.floor(intra.length / 2)] : null;
-    return { items, med, count: Object.keys(byId).length, W: lw.W, learned: lw.learned };
+    // ちがう ことばどうしの いちばん 近い ちがい（すぐ 決める しきい値の 上限に つかう）
+    let nn10 = null;
+    if (Object.keys(byId).length >= 3) {
+      const mv = items.map(it => meanVec(it.f, lw.W)), nn = [];
+      items.forEach((it, i) => {
+        const cand = items.map((o, j) => ({ o, c: o.id === it.id ? Infinity : mv[i].reduce((s, x, d) => s + Math.abs(x - mv[j][d]), 0) })).sort((a, b) => a.c - b.c).slice(0, 6);
+        let best = Infinity; cand.forEach(x => { if (x.c < Infinity) best = Math.min(best, combo(it, x.o, lw.W)); });
+        if (best < Infinity) nn.push(best);
+      });
+      nn.sort((a, b) => a - b); if (nn.length) nn10 = nn[Math.floor(nn.length * 0.1)];
+    }
+    return { items, med, nn10, count: Object.keys(byId).length, W: lw.W, learned: lw.learned };
   }
   // 入力（L コマに そろえた からだ基準の 列）→ 近い じゅんの ランキング
   function rank(prep, seq, opt) {
     opt = opt || {};
-    const q = features(normalizeSeq(seq));
-    const qm = opt.mirror ? features(normalizeSeq(mirrorSeq(seq))) : null;
+    const qf = features(normalizeSeq(seq)), q = { f: qf, k: keyPose(qf) };
+    let qm = null; if (opt.mirror) { const mf = features(normalizeSeq(mirrorSeq(seq))); qm = { f: mf, k: keyPose(mf) }; }
     const best = {};
     prep.items.forEach(it => {
       if (opt.only && !opt.only[it.id]) return;
       if (opt.skip && opt.skip(it)) return;
-      let d = dtw(q, it.f, prep.W);
-      if (qm) d = Math.min(d, dtw(qm, it.f, prep.W) + 0.05);
+      let d = combo(q, it, prep.W);
+      if (qm) d = Math.min(d, combo(qm, it, prep.W) + 0.05);
       if (best[it.id] == null || d < best[it.id]) best[it.id] = d;
     });
     return Object.keys(best).map(id => ({ id, d: best[id] })).sort((a, b) => a.d - b.d);
   }
   // まちがえやすい 組み合わせを さがす（見本を 1つずつ はずして ほかで 判定）
+  // 動きの 流れ（DTW）と きめの 形（keyPose）を あわせた ちがい
+  function combo(a, b, W) {
+    return (dtw(a.f, b.f, W) + keyDist(a.k, b.k, W)) / 2;
+  }
   function meanVec(f, W) {   // おおまかな くらべ用（コマの 平均）
     const m = new Float32Array(VD + 2); let n = 0;
     f.forEach(fr => { for (let d = 0; d < VD; d++) m[d] += fr.v[d] * fr.w; if (fr.hd) m[VD] += fr.w; if (fr.hn) m[VD + 1] += fr.w; n += fr.w; });
@@ -297,7 +343,7 @@
       // おおまかに 近い 10こ ＋ 同じ ことばの 見本 だけを くわしく くらべる
       const near = prep.items.map((o, j) => ({ o, j, c: j === ii ? Infinity : mv[ii].reduce((s, x, d) => s + Math.abs(x - mv[j][d]), 0) })).sort((a, b) => a.c - b.c).slice(0, 10).map(x => x.o);
       prep.items.forEach(o => { if (o !== it && o.id === it.id && near.indexOf(o) < 0) near.push(o); });
-      near.forEach(o => { const d = dtw(it.f, o.f, prep.W); if (seen[o.id] == null || d < seen[o.id]) seen[o.id] = d; });
+      near.forEach(o => { const d = combo(it, o, prep.W); if (seen[o.id] == null || d < seen[o.id]) seen[o.id] = d; });
       Object.keys(seen).forEach(id => r.push({ id, d: seen[id] }));
       r.sort((a, b) => a.d - b.d);
       if (!r.length || !seen[it.id] && seen[it.id] !== 0) return;
@@ -310,15 +356,19 @@
   }
   // 感度（1 きびしい … 3 ゆるい）から しきい値を きめる
   function thresholds(prep, sens) {
-    const base = prep.med != null ? Math.min(1.5, Math.max(0.3, prep.med * 1.9)) : 0.9;
+    const wide = prep.med != null ? Math.min(1.5, Math.max(0.3, prep.med * 1.9)) : 0.9;
+    let base = wide;
+    if (prep.nn10 != null) base = Math.max(0.3, Math.min(base, prep.nn10 * 0.9));
     const k = [0.75, 1, 1.3][Math.max(0, Math.min(2, (sens || 2) - 1))];
-    return { ok: base * k, maybe: base * k * 1.55, gap: 0.08 };
+    // ok：ほかの ことばより 近い ところ ／ wide：2ばんめと はっきり 差が あれば ここまで OK ／ maybe：こうほを 出す
+    return { ok: base * k, wide: wide * k, maybe: Math.max(base * 1.55, wide * 1.3) * k, gap: 0.08, clear: [1.5, 1.35, 1.25][Math.max(0, Math.min(2, (sens || 2) - 1))] };
   }
   // 判定：{ kind:'ok'|'maybe'|'none', top:[…] }
   function judge(ranked, th) {
     if (!ranked.length) return { kind: 'none', top: [] };
     const a = ranked[0], b = ranked[1];
     if (a.d <= th.ok && (!b || b.d - a.d >= th.gap * Math.max(1, a.d) && b.d >= a.d * 1.08)) return { kind: 'ok', top: ranked.slice(0, 3) };
+    if (a.d <= (th.wide || th.ok) && b && b.d >= a.d * (th.clear || 1.35)) return { kind: 'ok', top: ranked.slice(0, 3) };
     if (a.d <= th.maybe) return { kind: 'maybe', top: ranked.slice(0, 3).filter(r => r.d <= th.maybe * 1.15) };
     return { kind: 'none', top: ranked.slice(0, 3) };
   }
@@ -384,6 +434,6 @@
     return Math.max(0, Math.min(1, (t - this.holdT) / this.o.holdMs));
   };
 
-  const api = { L, frameFrom, mirrorFrame, mirrorSeq, resample, normalizeSeq, encode, decode, features, frameDist, dtw, prepare, rank, confusions, thresholds, judge, Segmenter, palm };
+  const api = { combo, L, frameFrom, mirrorFrame, mirrorSeq, resample, normalizeSeq, encode, decode, features, frameDist, dtw, prepare, rank, confusions, thresholds, judge, Segmenter, palm };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SignEngine = api;
 })(typeof window !== 'undefined' ? window : this);

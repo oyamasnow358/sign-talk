@@ -1,5 +1,5 @@
 // オフラインでも つかえるように する（はじめて ひらいた ときに 読みとりの モデルも 保存）
-const CACHE = 'sign-9c71ba7658';
+const CACHE = 'sign-b6cbabc8e7';
 const CORE = ['./', 'index.html', 'vendor/vision_bundle.js', 'vendor/wasm/vision_wasm_internal.js', 'vendor/wasm/vision_wasm_internal.wasm', 'vendor/models/hand_landmarker.task', 'vendor/models/pose_landmarker_lite.task', 'sets/index.json'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('sign-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

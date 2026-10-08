@@ -564,6 +564,7 @@
         const c = E.confusions(prep), name = id => (wordById(s, id) || { e: '', w: id });
         body.append(h('div', { class: 'row', style: 'margin-bottom:10px' }, back),
           h('div', { class: c.pairs.length ? 'warn' : 'okmsg' }, '見本どうしの テスト：' + c.ok + ' / ' + c.total + ' こ 正しく わかりました。' + (prep.learned ? '（この セットの 見本から「見分けに 効く ところ」を 学習ずみ）' : '')),
+          (() => { const one = s.words.filter(w => !w.off && w.samples && w.samples.length === 1).length; return one ? h('div', { class: 'warn' }, '📌 1回だけ とうろく された ことばが ' + one + 'こ あります。1つの ことばに 3回（できれば ちがう 人も）とると、ずっと よく わかるように なります。') : ''; })(),
           c.pairs.length ? h('p', { class: 'help' }, '↓ まちがえやすい 組み合わせです。ちがいが はっきり するように とりなおすか、見本を ふやして ください（上ほど にています）。') : h('p', { class: 'help' }, 'まちがえやすい 組み合わせは ありません。'),
           h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, c.pairs.slice(0, 30).map(p => {
             const A = name(p.a), Bw = name(p.b);
@@ -600,7 +601,7 @@
         h('div', { class: 'recrow' },
           h('button', { class: 'big-btn red', type: 'button', style: 'min-width:220px;min-height:68px', onclick: () => startRec(w, 1) }, '● 1回 とる'),
           h('button', { class: 'big-btn vio', type: 'button', style: 'min-width:220px;min-height:68px', onclick: () => startRec(w, 3) }, '●●● 3回 つづけて')),
-        h('p', { class: 'help', style: 'margin:0' }, '「どうぞ」の あとに サイン → おわったら 手を おろす（または 手を とめる）と 1回 ぶん 保存されます。'),
+        h('p', { class: 'help', style: 'margin:0' }, '「どうぞ」の あと、手を おろした ところから サイン → おわったら 手を おろす（または 手を とめる）と 1回 ぶん 保存されます。'),
         msgBox, memo,
         h('div', { class: 'samples' }, (w.samples || []).map((smp, i) => {
           const cv = h('canvas');
@@ -618,7 +619,8 @@
     }
     function countdown(k) {
       if (!rec) return;
-      if (k === 0) { cdown.textContent = ''; rec.armed = true; seg.reset(); speak('どうぞ', 1.1); return; }
+      // いちど 手を おろしてから（手を あげる ところから 記録する。見本の 区切り方を そろえる）
+      if (k === 0) { cdown.textContent = ''; rec.armed = true; seg.reset(); seg.state = 'wait'; seg.holdRef = null; speak('どうぞ', 1.1); return; }
       cdown.textContent = k; beep();
       rec.timer = setTimeout(() => countdown(k - 1), 800);
     }
@@ -648,6 +650,7 @@
       let [cls, txt] = statusOf(seg, info);
       if (!rec) { txt = sel ? '「● とる」を おすと とうろく できます' : '← ことばを えらんでください'; cls = ''; }
       else if (!rec.armed) { txt = '⏳ よーい…'; }
+      else if (rec.armed && seg.state === 'wait') { txt = '⬇️ いちど てを おろしてから サインしてね'; cls = 'sign'; }
       else if (rec.armed && seg.state === 'idle') txt = '🔴 「' + rec.w.w + '」の サインを どうぞ';
       cb.status.className = 'status ' + cls; if (cb.status.textContent !== txt) cb.status.textContent = txt;
       if (r && rec && rec.armed) { rec.armed = false; chime(false); onSample(E.resample(r.frames, r.times)); }
