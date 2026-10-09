@@ -98,13 +98,13 @@
   async function saveSet(s) { if (!s || s.builtin) return; s.updated = Date.now(); setVer++; await DB.put(JSON.parse(JSON.stringify(s))).catch(e => toast('ほぞん できませんでした')); }
   function prepFor(s) {
     if (prepCache.id === s.id && prepCache.ver === setVer) return prepCache.prep;
-    const words = s.words.filter(w => !w.off && w.samples && w.samples.length);
+    const words = s.words.filter(w => !w.off && w.samples && w.samples.length).map(w => ({ id: w.id, samples: w.samples.concat(w.learned || []) }));
     prepCache = { id: s.id, ver: setVer, prep: E.prepare(words) };
     return prepCache.prep;
   }
   function wordById(s, id) { return s.words.find(w => w.id === id); }
   function exportSet(s) {
-    const data = { format: 'mieel-sign-set', v: 1, name: s.name, made: new Date().toISOString().slice(0, 10), words: s.words.map(w => ({ id: w.id, cat: w.cat, e: w.e, w: w.w, p: w.p, s: w.s, u: !!w.u, memo: w.memo || '', off: !!w.off, samples: w.samples || [] })) };
+    const data = { format: 'mieel-sign-set', v: 1, name: s.name, made: new Date().toISOString().slice(0, 10), words: s.words.map(w => ({ id: w.id, cat: w.cat, e: w.e, w: w.w, p: w.p, s: w.s, u: !!w.u, memo: w.memo || '', off: !!w.off, samples: w.samples || [], learned: w.learned || [] })) };
     const json = JSON.stringify(data);
     const name = 'サインセット_' + s.name.replace(/[\\/:*?"<>|\s]/g, '') + '.json';
     const download = () => {
@@ -126,7 +126,7 @@
       const j = JSON.parse(await file.text());
       if (j.format !== 'mieel-sign-set' || !Array.isArray(j.words)) throw new Error('format');
       let name = j.name || 'よみこんだ セット'; while (SETS.some(s => s.name === name)) name += '（2）';
-      const s = { id: 'u-' + uid(), name, made: Date.now(), loaded: true, words: j.words.map(w => ({ id: String(w.id || 'my-' + uid()), cat: w.cat || 'aisatsu', e: w.e || '🤟', w: w.w || '？', p: w.p || w.w, s: w.s || '', u: !!w.u, memo: w.memo || '', off: !!w.off, samples: Array.isArray(w.samples) ? w.samples.filter(x => typeof x === 'string') : [] })) };
+      const s = { id: 'u-' + uid(), name, made: Date.now(), loaded: true, words: j.words.map(w => ({ id: String(w.id || 'my-' + uid()), cat: w.cat || 'aisatsu', e: w.e || '🤟', w: w.w || '？', p: w.p || w.w, s: w.s || '', u: !!w.u, memo: w.memo || '', off: !!w.off, samples: Array.isArray(w.samples) ? w.samples.filter(x => typeof x === 'string') : [], learned: Array.isArray(w.learned) ? w.learned.filter(x => typeof x === 'string') : [] })) };
       await DB.put(s); SETS.push(s); st.activeSet = s.id; saveSt(); setVer++;
       toast('「' + name + '」を よみこみました（サイン ' + recCount(s) + 'こ）', 3000);
       renderTeacher();
@@ -134,6 +134,9 @@
   }
   // 見本を 足す（10こ まで。はじめの 3こは のこし、あとから 足した ものを 入れかえる）
   function addSample(w, seq) { w.samples = w.samples || []; w.samples.push(E.encode(seq)); if (w.samples.length > 10) w.samples.splice(3, 1); }
+  // つかいながら おぼえる（1語 6こまで・ふるい ものから いれかわる）。とりけし用に 文字列を かえす
+  function addLearned(w, seq) { const code = E.encode(seq); w.learned = (w.learned || []).concat(code); while (w.learned.length > 6) w.learned.shift(); return code; }
+  function dropLearned(w, code) { if (w && w.learned) { const i = w.learned.lastIndexOf(code); if (i >= 0) w.learned.splice(i, 1); } }
 
   /* ============================================================
      きろく
@@ -427,10 +430,18 @@
       while (words.children.length > 8) words.firstChild.remove();
       words.scrollLeft = words.scrollWidth;
     }
-    function decided(w, kind, seq, scores) {
+    // kind：ok（すぐ決定）・pick（もしかして で えらんだ）・fix（ちがう で なおした）
+    function decided(w, kind, seq, scores, ranked, strong) {
       showWord(w, scores); addChip(w); logPush(w, kind);
-      bigCard(w);
-      if (kind === 'pick' && st.learn && !s.builtin && seq) { addSample(w, seq); saveSet(s); }
+      let code = null;
+      const canLearn = st.learn && !s.builtin && seq;
+      if (canLearn && (kind === 'pick' || kind === 'fix' || (kind === 'ok' && strong))) { code = addLearned(w, seq); saveSet(s); }
+      bigCard(w, () => fixPicker(ranked, w, nw => {
+        // まちがって おぼえた ぶんを とりけし、ただしい ことばの 見本として おぼえる
+        if (code) dropLearned(w, code);
+        if (s.words.indexOf(nw) >= 0) decided(nw, 'fix', seq, scores, ranked, false);
+        saveSet(s);
+      }));
     }
     showIdle();
     const seg = newSeg();
@@ -449,10 +460,12 @@
       const ranked = E.rank(prep, seq, { mirror: st.mirror });
       const j = E.judge(ranked, th);
       const scores = ranked.slice(0, 3).map(x => (wordById(s, x.id) || {}).w + ' ' + x.d.toFixed(2)).join(' / ') + '  しきい ' + th.ok.toFixed(2) + ' (' + r.why + ')';
-      if (j.kind === 'ok' && st.confirm !== 'always') decided(wordById(s, j.top[0].id), 'ok', seq, scores);
+      // 自信が たかい（2ばんめより はっきり 近い）ときだけ 自動で おぼえる
+      const strong = j.kind === 'ok' && (!ranked[1] || ranked[1].d >= ranked[0].d * 1.4);
+      if (j.kind === 'ok' && st.confirm !== 'always') decided(wordById(s, j.top[0].id), 'ok', seq, scores, ranked, strong);
       else if (j.kind === 'ok' || j.kind === 'maybe') {
         const cands = j.top.map(x => wordById(s, x.id)).filter(Boolean);
-        maybeCard(cands, w => decided(w, 'pick', seq, scores));
+        maybeCard(cands, w => decided(w, 'pick', seq, scores, ranked, false), () => fixPicker(ranked, null, nw => decided(nw, 'fix', seq, scores, ranked, false)));
       } else {
         busyUntil = info.t + 600;
         result.classList.remove('pop'); void result.offsetWidth;
@@ -467,24 +480,45 @@
   let ovTimer = null, ovRepeat = null;
   const overlayOpen = () => !!$('.overlay');
   function closeOverlay() { clearTimeout(ovTimer); clearInterval(ovRepeat); const o = $('.overlay'); if (o) o.remove(); }
-  function bigCard(w) {
+  function bigCard(w, onWrong) {
     closeOverlay();
     const card = h('div', { class: 'bigcard', style: '--c:' + (w.u ? 'var(--red)' : catColor(w.cat)) }, h('span', { class: 'emo' }, w.e), h('div', { class: 'word' }, w.w), w.p && w.p !== w.w ? h('div', { class: 'phrase' }, w.p) : null);
+    const wrong = onWrong ? h('button', { class: 'pill small wrongbtn', type: 'button', onclick: e => { e.stopPropagation(); closeOverlay(); onWrong(); } }, '✋ ちがう（なおす）') : null;
     const ov = h('div', { class: 'overlay' + (w.u ? ' urgent' : '') }, h('div', { style: 'display:flex;flex-direction:column;align-items:center' }, card,
-      w.u ? h('button', { class: 'big-btn red ack', type: 'button', onclick: closeOverlay }, '👌 わかったよ') : h('div', { class: 'tapnote' }, 'タップで とじる')));
+      w.u ? h('button', { class: 'big-btn red ack', type: 'button', onclick: closeOverlay }, '👌 わかったよ') : h('div', { class: 'tapnote' }, 'タップで とじる'), wrong));
     if (!w.u) ov.addEventListener('click', closeOverlay);
     document.body.appendChild(ov);
     announce(w);
     if (w.u && st.urgentRepeat) { let n = 0; ovRepeat = setInterval(() => { if (++n > 5) { clearInterval(ovRepeat); return; } announce(w); }, 4500); }
-    else if (!w.u) ovTimer = setTimeout(closeOverlay, 2800);
+    else if (!w.u) ovTimer = setTimeout(closeOverlay, 3300);
   }
-  function maybeCard(cands, onPick) {
+  // ただしい ことばを えらびなおす（先生用）。ranked の 上から ＋ さがす
+  function fixPicker(ranked, wrongW, onPick) {
+    closeOverlay();
+    const s = active(); if (!s) return;
+    let q = '';
+    const top = (ranked || []).map(r => wordById(s, r.id)).filter(w => w && w !== wrongW).slice(0, 8);
+    const grid = h('div', { class: 'cands', style: 'max-height:52vh;overflow-y:auto' });
+    const draw = () => {
+      grid.innerHTML = '';
+      const list = q ? s.words.filter(w => (w.w + (w.p || '') + (w.s || '')).indexOf(q) >= 0).slice(0, 24) : top;
+      list.forEach(w => grid.append(h('button', { class: 'cand', type: 'button', style: 'border-color:' + catColor(w.cat), onclick: e => { e.stopPropagation(); closeOverlay(); onPick(w); } }, h('span', { class: 'emo' }, w.e), h('span', { class: 'word' }, w.w))));
+    };
+    const inp = h('input', { type: 'search', placeholder: '🔍 ことばを さがす', style: 'height:48px;border:2px solid var(--line);border-radius:14px;padding:0 14px;font-size:18px;width:min(420px,80vw)' });
+    inp.addEventListener('input', () => { q = inp.value.trim(); draw(); });
+    const box = h('div', { class: 'maybe' }, h('h2', null, '✋ ほんとうは どれ？'), h('p', { class: 'help', style: 'margin:0' }, 'えらぶと その ことばを こえで つたえ、この サインを その ことばとして おぼえます'), inp, grid,
+      h('button', { class: 'pill', type: 'button', onclick: closeOverlay }, 'やめる'));
+    const ov = h('div', { class: 'overlay' }, box);
+    ov.addEventListener('click', e => { if (e.target === ov) closeOverlay(); });
+    document.body.appendChild(ov); draw();
+  }
+  function maybeCard(cands, onPick, onNone) {
     closeOverlay();
     if (!cands.length) return;
     beep();
     const box = h('div', { class: 'maybe' }, h('h2', null, '🤔 もしかして？'),
       h('div', { class: 'cands' }, cands.map(w => h('button', { class: 'cand', type: 'button', style: 'border-color:' + catColor(w.cat), onclick: e => { e.stopPropagation(); closeOverlay(); onPick(w); } }, h('span', { class: 'emo' }, w.e), h('span', { class: 'word' }, w.w)))),
-      h('button', { class: 'pill', type: 'button', onclick: closeOverlay }, '✋ ちがう'));
+      h('button', { class: 'pill', type: 'button', onclick: e => { e.stopPropagation(); closeOverlay(); if (onNone) onNone(); } }, '✋ どれも ちがう（なおす）'));
     const ov = h('div', { class: 'overlay' }, box);
     ov.addEventListener('click', e => { if (e.target === ov) closeOverlay(); });
     document.body.appendChild(ov);
@@ -739,7 +773,7 @@
       seg('とめる 長さ', 'holdMs', [[500, 'みじかい'], [700, 'ふつう'], [1000, 'ながい']]),
       range('おろす いち', 'restY', 0.9, 2.8, 0.05, v => v.toFixed(2), 'カメラ画面の 黄色い 線より 下に 手が あると「まっている」と みなします。すわって 机に 手を おく ときは 小さめに'),
       seg('カメラの えいぞう', 'showVideo', [[true, 'みせる'], [false, 'ほねだけ']], '映像が 気になる 子には「ほねだけ」'),
-      seg('なじませ', 'learn', [[true, 'する'], [false, 'しない']], '「もしかして？」で えらんだ サインを その子の 見本として おぼえます（自分の セットのみ）'),
+      seg('なじませ', 'learn', [[true, 'する'], [false, 'しない']], 'つかいながら その子の サインを おぼえます：自信を もって よめた とき・「もしかして？」で えらんだ とき・「✋ ちがう」で なおした とき（1つの ことばに 6こまで・ふるい ものから いれかわる。自分の セットのみ）'),
       seg('すうじを みせる', 'debug', [[false, 'みせない'], [true, 'みせる']], '先生用：近さの すうじ・fps を 表示'),
       h('p', { class: 'help', style: 'margin:10px 0 0;text-align:center' }, '© 2026 MieeL　学校や家庭での利用は自由です（無断転載・再配布・販売はお断り）。くわしくは「📜 ライセンス」')
     );

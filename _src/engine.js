@@ -27,11 +27,13 @@
     // 手を「右手・左手」に 分ける（からだの 手首に 近いほう。だめなら モデルの 左右を 反対に 読む）
     const wL = pose[15] && vis(pose[15]) ? px(pose[15]) : null, wR = pose[16] && vis(pose[16]) ? px(pose[16]) : null;
     let R = null, Lh = null;
+    // 右手・左手：まず 手の 見た目からの 判定（MediaPipe。左右反転して いない 映像なので ラベルは 逆）。自信が ひくい ときだけ からだの 手首に 近いほう
     const list = (hands || []).map((h, i) => {
-      const w = px(h[0]);
+      const w = px(h[0]), cat = handed && handed[i] && handed[i][0], c = cat && cat.categoryName, sc = cat && cat.score || 0;
       let side;
-      if (wL && wR) side = Math.hypot(w[0] - wR[0], w[1] - wR[1]) <= Math.hypot(w[0] - wL[0], w[1] - wL[1]) ? 'R' : 'L';
-      else { const c = handed && handed[i] && handed[i][0] && handed[i][0].categoryName; side = c === 'Left' ? 'R' : c === 'Right' ? 'L' : (w[0] < O[0] ? 'R' : 'L'); }
+      if (c && sc >= 0.8) side = c === 'Left' ? 'R' : 'L';
+      else if (wL && wR) side = Math.hypot(w[0] - wR[0], w[1] - wR[1]) <= Math.hypot(w[0] - wL[0], w[1] - wL[1]) ? 'R' : 'L';
+      else side = c === 'Left' ? 'R' : c === 'Right' ? 'L' : (w[0] < O[0] ? 'R' : 'L');
       return { h, side, x: w[0] };
     });
     if (list.length === 2 && list[0].side === list[1].side) { const a = list[0].x < list[1].x ? 0 : 1; list[a].side = 'R'; list[1 - a].side = 'L'; }
@@ -89,8 +91,10 @@
   }
   function normalizeSeq(seq) {
     seq = cleanSeq(seq);
-    let d = 0, n = 0;
-    seq.forEach(fr => { if (fr.d) d++; if (fr.n) n++; });
+    let d = 0, n = 0, both = 0;
+    seq.forEach(fr => { if (fr.d) d++; if (fr.n) n++; if (fr.d && fr.n) both++; });
+    // 片手の サイン：右手・左手の 判定は ゆれやすい（顔の ちかくなど）。映っている 手を 左右反転 せず そのまま 1つに まとめる
+    if (both <= seq.length * 0.2 && d + n > 0) { const out = seq.map(fr => ({ d: fr.d || fr.n, n: null, f: fr.f })); out.single = true; return out; }
     return (d < seq.length * 0.3 && n > d) ? mirrorSeq(seq) : seq;
   }
 
@@ -152,13 +156,14 @@
       const k = hi ? 0.7 : 1;
       put(o, NS, 'shape', 4.5 / NS * k);
       put(o + NS, NO, 'ori', 1.2 / NO * k);
-      put(o + NS + NO, 2, 'body', 0.5 * k);       // 手のひら（からだ基準）
-      put(o + NS + NO + 2, 2, 'face', 0.8 * k);    // 手のひら（鼻から）
-      put(o + NS + NO + 4, 2, 'face', 0.9 * k);   // 人さし指の先（鼻から）
+      put(o + NS + NO, 2, 'body', 0.25 * k);       // 手のひら（からだ基準）
+      put(o + NS + NO + 2, 2, 'face', 0.4 * k);    // 手のひら（鼻から）
+      put(o + NS + NO + 4, 2, 'face', 0.45 * k);   // 人さし指の先（鼻から）
     });
     put(HD * 2, 2, 'mov', 0.6); put(HD * 2 + 2, 2, 'mov', 0.4); put(HD * 2 + 4, 2, 'rel', 0.5);
   })();
   const MISS_D = 2.2, MISS_N = 1.2;
+  let single = false;
   function handVec(a, f, isN, out, o) {
     let k = o;
     CH.forEach(c => { out[k++] = angle(sub(P(a, c[1]), P(a, c[0])), sub(P(a, c[2]), P(a, c[1]))); });
@@ -171,6 +176,7 @@
     [[8, 12], [12, 16], [16, 20]].forEach(([u, v]) => { out[k++] = d(P(a, u), P(a, v)); });   // となりの 指先（くっつく／はなれる）
     let nv = nrm(cross(sub(P(a, 5), P(a, 0)), sub(P(a, 17), P(a, 0))));
     if (isN) nv = [-nv[0], -nv[1], -nv[2]];
+    if (single) nv = [Math.abs(nv[0]), Math.abs(nv[1]), Math.abs(nv[2])];   // 右手か 左手か わからない ときは 手のひらの 表・裏を つかわない
     const dv = nrm(sub(P(a, 9), P(a, 0)));
     out[k++] = nv[0]; out[k++] = nv[1]; out[k++] = nv[2]; out[k++] = dv[0]; out[k++] = dv[1]; out[k++] = dv[2];
     out[k++] = pc[0]; out[k++] = pc[1];
@@ -179,6 +185,7 @@
     return pc;
   }
   function features(seq) {
+    single = !!seq.single;
     const out = seq.map(fr => {
       const v = new Float32Array(VD);
       const pd = fr.d ? handVec(fr.d, fr.f, false, v, 0) : null;
