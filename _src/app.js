@@ -289,6 +289,8 @@
   // 見本を ループで うごかす（canvas に つける。とめる 関数を かえす）
   function animateSample(cv, sampleStr, opt) {
     let seq; try { seq = E.decode(sampleStr); } catch (e) { return () => {}; }
+    // 片手の 見本は きき手で かく（前の 見本で 右左を まちがえて 入っていても、うでが ×に ならない）
+    { let both = 0, d = 0, n = 0; seq.forEach(fr => { if (fr.d) d++; if (fr.n) n++; if (fr.d && fr.n) both++; }); if (both <= seq.length * 0.2 && n) seq = seq.map(fr => ({ d: fr.d || fr.n, n: null, f: fr.f })); }
     let alive = true, t0 = performance.now();
     // 手が ぜんぶ 入るように はんいを きめる（あたまと かたは かならず 入れる）
     const vw = { x0: -0.9, x1: 0.9, y0: -1.0, y1: 0.7 };

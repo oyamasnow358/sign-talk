@@ -598,16 +598,24 @@ const VOCAB = (function () {
     // 手を「右手・左手」に 分ける（からだの 手首に 近いほう。だめなら モデルの 左右を 反対に 読む）
     const wL = pose[15] && vis(pose[15]) ? px(pose[15]) : null, wR = pose[16] && vis(pose[16]) ? px(pose[16]) : null;
     let R = null, Lh = null;
-    // 右手・左手：まず 手の 見た目からの 判定（MediaPipe。左右反転して いない 映像なので ラベルは 逆）。自信が ひくい ときだけ からだの 手首に 近いほう
-    const list = (hands || []).map((h, i) => {
-      const w = px(h[0]), cat = handed && handed[i] && handed[i][0], c = cat && cat.categoryName, sc = cat && cat.score || 0;
-      let side;
-      if (c && sc >= 0.8) side = c === 'Left' ? 'R' : 'L';
-      else if (wL && wR) side = Math.hypot(w[0] - wR[0], w[1] - wR[1]) <= Math.hypot(w[0] - wL[0], w[1] - wL[1]) ? 'R' : 'L';
-      else side = c === 'Left' ? 'R' : c === 'Right' ? 'L' : (w[0] < O[0] ? 'R' : 'L');
-      return { h, side, x: w[0] };
-    });
-    if (list.length === 2 && list[0].side === list[1].side) { const a = list[0].x < list[1].x ? 0 : 1; list[a].side = 'R'; list[1 - a].side = 'L'; }
+    // 右手・左手の わけかた。MediaPipe の「右手／左手」ラベルは つかわない：
+    // 手のひら側と 手の甲側は 鏡に うつした 形と 同じに 見えるので、見た目だけでは 右左を 自信まんまんで まちがえる（右手だけの サインが 左手に なる）。
+    // ・手が 1つ：きき手。ただし からだの 反対側の 手首に はっきり 近い ときだけ 反対の 手
+    // ・手が 2つ：からだの 手首との 近さで 組み合わせ（2とおりの 合計を くらべる）。手首が 見えなければ 画面の 左右
+    const dom = lefty ? 'L' : 'R', non = lefty ? 'R' : 'L';
+    const pw = { R: wR, L: wL };
+    const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    const list = (hands || []).slice(0, 2).map(h => ({ h, w: px(h[0]), side: dom }));
+    if (list.length === 1) {
+      const o = list[0];
+      if (pw[dom] && pw[non] && dist(o.w, pw[non]) < 0.5 * dist(o.w, pw[dom]) && dist(o.w, pw[non]) < s * 0.6) o.side = non;
+      else if (!pw[dom] && pw[non] && dist(o.w, pw[non]) < s * 0.4) o.side = non;
+    } else if (list.length === 2) {
+      let a;
+      if (wR && wL) a = dist(list[0].w, wR) + dist(list[1].w, wL) <= dist(list[0].w, wL) + dist(list[1].w, wR) ? 0 : 1;
+      else a = list[0].w[0] < list[1].w[0] ? 0 : 1;   // 左右反転して いない 映像：画面の 左が その人の 右手
+      list[a].side = 'R'; list[1 - a].side = 'L';
+    }
     list.forEach(o => { if (o.side === 'R') R = o.h; else Lh = o.h; });
     const conv = h => { if (!h) return null; const a = new Float32Array(NH); for (let k = 0; k < 21; k++) { const b = B(px(h[k])); a[k * 3] = b[0]; a[k * 3 + 1] = b[1]; a[k * 3 + 2] = b[2]; } return a; };
     const nose = B(px(pose[0])), mo = pose[9] && pose[10] ? B([(pose[9].x + pose[10].x) / 2 * W, (pose[9].y + pose[10].y) / 2 * H, 0]) : nose;
@@ -1307,6 +1315,8 @@ const VOCAB = (function () {
   // 見本を ループで うごかす（canvas に つける。とめる 関数を かえす）
   function animateSample(cv, sampleStr, opt) {
     let seq; try { seq = E.decode(sampleStr); } catch (e) { return () => {}; }
+    // 片手の 見本は きき手で かく（前の 見本で 右左を まちがえて 入っていても、うでが ×に ならない）
+    { let both = 0, d = 0, n = 0; seq.forEach(fr => { if (fr.d) d++; if (fr.n) n++; if (fr.d && fr.n) both++; }); if (both <= seq.length * 0.2 && n) seq = seq.map(fr => ({ d: fr.d || fr.n, n: null, f: fr.f })); }
     let alive = true, t0 = performance.now();
     // 手が ぜんぶ 入るように はんいを きめる（あたまと かたは かならず 入れる）
     const vw = { x0: -0.9, x1: 0.9, y0: -1.0, y1: 0.7 };
